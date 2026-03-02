@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { Download, Edit, Calendar as CalendarIcon, Clock, CheckCircle, XCircle, FileText, Shield, Briefcase, Activity, CheckSquare, Save, Home, Building2, Laptop, Users } from 'lucide-react';
+import { Download, Edit, Calendar as CalendarIcon, Clock, CheckCircle, XCircle, FileText, Shield, Briefcase, Activity, CheckSquare, Save, Home, Building2, Laptop, Users, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -30,6 +30,13 @@ import { Calendar } from '@/components/ui/calendar';
 import StatsCard from '@/components/StatsCard';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  getMyEmployee,
+  updateMyEmployee,
+  getAttendanceHistory,
+  type Employee as EmployeeData,
+  type AttendanceRecord as AttRec,
+} from '@/lib/api';
 
 interface LeaveRequest {
   id: string;
@@ -41,16 +48,7 @@ interface LeaveRequest {
   reason?: string;
 }
 
-interface AttendanceRecord {
-  date: string;
-  status: 'Present' | 'Absent' | 'Leave' | 'Holiday';
-  checkIn?: string;
-  checkOut?: string;
-  breakStart?: string;
-  breakEnd?: string;
-  breakDuration?: string;
-  workMode?: 'office' | 'remote' | 'hybrid' | 'onsite';
-}
+
 
 interface PayrollRecord {
   id: string;
@@ -79,21 +77,65 @@ export default function EmployeeProfile() {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Real user details from Supabase auth
+  // ── Real data from backend ──────────────────────────────
+  const [employeeData, setEmployeeData] = useState<EmployeeData | null>(null);
+  const [attendanceHistory, setAttendanceHistory] = useState<AttRec[]>([]);
+  const [loadingEmployee, setLoadingEmployee] = useState(true);
+  const [loadingAttendance, setLoadingAttendance] = useState(true);
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  // Edit form state (initialised when modal opens)
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [editDepartment, setEditDepartment] = useState('');
+  const [editPosition, setEditPosition] = useState('');
+
+  const fetchEmployee = useCallback(async () => {
+    setLoadingEmployee(true);
+    const { data } = await getMyEmployee();
+    if (data) setEmployeeData(data);
+    setLoadingEmployee(false);
+  }, []);
+
+  const fetchAttendance = useCallback(async () => {
+    setLoadingAttendance(true);
+    const now = new Date();
+    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const { data } = await getAttendanceHistory({ month });
+    if (data) setAttendanceHistory(data);
+    setLoadingAttendance(false);
+  }, []);
+
+  useEffect(() => { fetchEmployee(); fetchAttendance(); }, [fetchEmployee, fetchAttendance]);
+
+  // Derive display values: prefer real employee data, fallback to auth metadata
   const authName: string =
+    employeeData?.full_name ||
     user?.user_metadata?.full_name ||
     user?.user_metadata?.name ||
     user?.email?.split('@')[0] ||
     'Employee';
-  const authEmail: string = user?.email || 'employee@company.com';
+  const authEmail: string = employeeData?.email || user?.email || 'employee@company.com';
 
-  // Handlers for profile actions
-  const handleSaveProfile = () => {
-    setShowEditModal(false);
-    toast({
-      title: "Profile Updated",
-      description: "Your profile information has been saved successfully."
+  // Save profile handler
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
+    const { data, error } = await updateMyEmployee({
+      full_name: editName || undefined,
+      phone: editPhone || undefined,
+      address: editAddress || undefined,
+      department: editDepartment || undefined,
+      position: editPosition || undefined,
     });
+    setSavingProfile(false);
+    if (error) {
+      toast({ title: 'Save Failed', description: error, variant: 'destructive' });
+      return;
+    }
+    if (data) setEmployeeData(data);
+    setShowEditModal(false);
+    toast({ title: 'Profile Updated', description: 'Your profile has been saved.' });
   };
 
   const handleSubmitLeave = () => {
@@ -112,28 +154,28 @@ export default function EmployeeProfile() {
     };
   }, [leavePreviewUrl]);
 
-  // Employee data – name & email from real auth; rest are profile placeholders
+  // Employee data — name & email from real backend data; rest fallback to placeholders
   const employee = {
-    id: 'EMP-2026-001',
+    id: employeeData?.employee_code || 'EMP-001',
     name: authName,
     email: authEmail,
-    phone: '+1 555-0100',
-    department: 'Engineering',
-    position: 'Senior Software Engineer',
-    manager: 'Sarah Johnson',
-    joinDate: '2024-03-15',
-    status: 'Active',
-    avatar: '',
-    address: '123 Main Street, New York, NY 10001',
+    phone: employeeData?.phone || '+1 555-0100',
+    department: employeeData?.department || 'Engineering',
+    position: employeeData?.position || 'Employee',
+    manager: employeeData?.manager || '—',
+    joinDate: employeeData?.join_date || '—',
+    status: employeeData?.status === 'active' ? 'Active' : employeeData?.status || 'Active',
+    avatar: employeeData?.avatar_url || '',
+    address: employeeData?.address || '—',
     emergencyContact: {
-      name: 'Jane Anderson',
-      relationship: 'Spouse',
-      phone: '+1 555-0101',
+      name: employeeData?.emergency_contact_name || '—',
+      relationship: employeeData?.emergency_contact_relationship || '—',
+      phone: employeeData?.emergency_contact_phone || '—',
     },
     bankDetails: {
-      accountNumber: '****1234',
-      bankName: 'First National Bank',
-      routingNumber: '****5678',
+      accountNumber: employeeData?.bank_account_number || '****',
+      bankName: employeeData?.bank_name || '—',
+      routingNumber: employeeData?.bank_routing_number || '****',
     },
   };
 
@@ -217,87 +259,17 @@ export default function EmployeeProfile() {
 
 
 
-  const attendanceRecords: AttendanceRecord[] = [
-    {
-      date: '2026-02-06',
-      status: 'Present',
-      checkIn: '09:00 AM',
-      checkOut: '05:30 PM',
-      breakStart: '12:00 PM',
-      breakEnd: '12:45 PM',
-      breakDuration: '0h 45m',
-      workMode: 'office',
-    },
-    {
-      date: '2026-02-05',
-      status: 'Present',
-      checkIn: '09:15 AM',
-      checkOut: '05:45 PM',
-      breakStart: '12:30 PM',
-      breakEnd: '01:00 PM',
-      breakDuration: '0h 30m',
-      workMode: 'remote',
-    },
-    {
-      date: '2026-02-04',
-      status: 'Present',
-      checkIn: '08:50 AM',
-      checkOut: '05:20 PM',
-      breakStart: '12:15 PM',
-      breakEnd: '01:00 PM',
-      breakDuration: '0h 45m',
-      workMode: 'hybrid',
-    },
-    {
-      date: '2026-02-03',
-      status: 'Present',
-      checkIn: '09:05 AM',
-      checkOut: '05:35 PM',
-      breakStart: '12:00 PM',
-      breakEnd: '12:30 PM',
-      breakDuration: '0h 30m',
-      workMode: 'onsite',
-    },
-    {
-      date: '2026-01-31',
-      status: 'Leave',
-      checkIn: '-',
-      checkOut: '-',
-      breakStart: '-',
-      breakEnd: '-',
-      breakDuration: '-',
-    },
-    {
-      date: '2026-01-30',
-      status: 'Present',
-      checkIn: '09:10 AM',
-      checkOut: '05:40 PM',
-      breakStart: '12:00 PM',
-      breakEnd: '12:45 PM',
-      breakDuration: '0h 45m',
-      workMode: 'office',
-    },
-    {
-      date: '2026-01-29',
-      status: 'Present',
-      checkIn: '09:00 AM',
-      checkOut: '06:00 PM',
-      breakStart: '12:30 PM',
-      breakEnd: '01:15 PM',
-      breakDuration: '0h 45m',
-      workMode: 'remote',
-    },
-    {
-      date: '2026-01-28',
-      status: 'Present',
-      checkIn: '08:55 AM',
-      checkOut: '05:25 PM',
-      breakStart: '12:00 PM',
-      breakEnd: '12:30 PM',
-      breakDuration: '0h 30m',
-      workMode: 'office',
-    },
-  ];
+  // Helper: format ISO timestamp → HH:MM AM/PM
+  const fmtTime = (iso?: string | null) => {
+    if (!iso) return '-';
+    return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+  const fmtMinutes = (m?: number) => {
+    if (!m) return '-';
+    const h = Math.floor(m / 60);
+    const min = m % 60;
+    return `${h}h ${min}m`;
+  };
 
   // Work mode configuration
   const workModeConfig = {
@@ -336,7 +308,17 @@ export default function EmployeeProfile() {
   };
 
   const EditProfileModal = () => (
-    <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+    <Dialog open={showEditModal} onOpenChange={(v) => {
+      setShowEditModal(v);
+      if (v) {
+        // Pre-fill form fields
+        setEditName(employee.name);
+        setEditPhone(employee.phone);
+        setEditAddress(employee.address);
+        setEditDepartment(employee.department);
+        setEditPosition(employee.position);
+      }
+    }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Profile</DialogTitle>
@@ -346,30 +328,40 @@ export default function EmployeeProfile() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="editName">Full Name</Label>
-              <Input id="editName" defaultValue={employee.name} />
+              <Input id="editName" value={editName} onChange={e => setEditName(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="editEmail">Email</Label>
-              <Input id="editEmail" type="email" defaultValue={employee.email} />
+              <Input id="editEmail" type="email" defaultValue={employee.email} disabled />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="editPhone">Phone</Label>
-              <Input id="editPhone" defaultValue={employee.phone} />
+              <Input id="editPhone" value={editPhone} onChange={e => setEditPhone(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="editAddress">Address</Label>
-              <Input id="editAddress" defaultValue={employee.address} />
+              <Input id="editAddress" value={editAddress} onChange={e => setEditAddress(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="editDept">Department</Label>
+              <Input id="editDept" value={editDepartment} onChange={e => setEditDepartment(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editPos">Position</Label>
+              <Input id="editPos" value={editPosition} onChange={e => setEditPosition(e.target.value)} />
             </div>
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setShowEditModal(false)}>
+          <Button variant="outline" onClick={() => setShowEditModal(false)} disabled={savingProfile}>
             Cancel
           </Button>
-          <Button onClick={handleSaveProfile} className="bg-blue-600 hover:bg-blue-700">
-            <Save className="h-4 w-4 mr-2" />
+          <Button onClick={handleSaveProfile} disabled={savingProfile} className="bg-blue-600 hover:bg-blue-700">
+            {savingProfile ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
             Save Changes
           </Button>
         </DialogFooter>
@@ -759,24 +751,34 @@ export default function EmployeeProfile() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {attendanceRecords.map((record) => {
-                      const calculateWorkHours = () => {
-                        if (!record.checkIn || !record.checkOut || record.checkIn === '-') return '-';
-                        // Simple calculation for display purposes
-                        return '8h 30m';
-                      };
-
+                    {loadingAttendance ? (
+                      <TableRow>
+                        <TableCell colSpan={9} className="text-center py-10">
+                          <Loader2 className="animate-spin inline-block text-gray-400" size={24} />
+                        </TableCell>
+                      </TableRow>
+                    ) : attendanceHistory.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={9} className="text-center py-10 text-gray-500">
+                          No attendance records this month.
+                        </TableCell>
+                      </TableRow>
+                    ) : attendanceHistory.map((record: AttRec) => {
+                      const mode = record.work_mode as keyof typeof workModeConfig | undefined;
+                      const statusLabel =
+                        record.status === 'on_leave' ? 'Leave' :
+                          record.status === 'half_day' ? 'Half Day' :
+                            record.status.charAt(0).toUpperCase() + record.status.slice(1);
+                      const statusVariant = getStatusBadgeVariant(statusLabel);
                       return (
-                        <TableRow key={record.date}>
+                        <TableRow key={record.id}>
                           <TableCell className="font-medium">{record.date}</TableCell>
                           <TableCell>
-                            <Badge variant={getStatusBadgeVariant(record.status)}>
-                              {record.status}
-                            </Badge>
+                            <Badge variant={statusVariant}>{statusLabel}</Badge>
                           </TableCell>
                           <TableCell>
-                            {record.workMode ? (() => {
-                              const config = workModeConfig[record.workMode];
+                            {mode ? (() => {
+                              const config = workModeConfig[mode];
                               const Icon = config.icon;
                               return (
                                 <Badge className={config.color}>
@@ -788,41 +790,40 @@ export default function EmployeeProfile() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              {record.checkIn !== '-' && <CheckCircle className="w-4 h-4 text-green-600" />}
-                              {record.checkIn}
+                              {record.check_in_time && <CheckCircle className="w-4 h-4 text-green-600" />}
+                              {fmtTime(record.check_in_time)}
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              {record.checkOut !== '-' && <XCircle className="w-4 h-4 text-red-600" />}
-                              {record.checkOut}
+                              {record.check_out_time && <XCircle className="w-4 h-4 text-red-600" />}
+                              {fmtTime(record.check_out_time)}
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              {record.breakStart && record.breakStart !== '-' && <Clock className="w-4 h-4 text-amber-600" />}
-                              {record.breakStart || '-'}
+                              {record.break_start_time && <Clock className="w-4 h-4 text-amber-600" />}
+                              {fmtTime(record.break_start_time)}
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              {record.breakEnd && record.breakEnd !== '-' && <Clock className="w-4 h-4 text-orange-600" />}
-                              {record.breakEnd || '-'}
+                              {record.break_end_time && <Clock className="w-4 h-4 text-orange-600" />}
+                              {fmtTime(record.break_end_time)}
                             </div>
                           </TableCell>
                           <TableCell>
-                            {record.breakDuration && record.breakDuration !== '-' ? (
+                            {(record.total_break_minutes ?? 0) > 0 ? (
                               <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                                {record.breakDuration}
+                                {fmtMinutes(record.total_break_minutes)}
                               </Badge>
-                            ) : (
-                              '-'
-                            )}
+                            ) : '-'}
                           </TableCell>
-                          <TableCell>{calculateWorkHours()}</TableCell>
+                          <TableCell>{record.work_hours ? `${record.work_hours}h` : '-'}</TableCell>
                         </TableRow>
                       );
                     })}
+
                   </TableBody>
                 </Table>
               </CardContent>

@@ -1,0 +1,144 @@
+-- ============================================================
+-- Z-ERP Supabase Schema
+-- Run these in the Supabase SQL Editor (Dashboard → SQL Editor)
+-- ============================================================
+
+-- ============================================================
+-- 1. EMPLOYEES TABLE
+-- Stores employee details linked to Supabase Auth users.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.employees (
+  id                              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id                         UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE NOT NULL,
+  employee_code                   TEXT UNIQUE,               -- e.g. EMP-2026-001
+  full_name                       TEXT NOT NULL,
+  email                           TEXT NOT NULL,
+  phone                           TEXT,
+  address                         TEXT,
+  department                      TEXT,
+  position                        TEXT,
+  manager                         TEXT,
+  join_date                       DATE DEFAULT CURRENT_DATE,
+  status                          TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'on_leave', 'terminated')),
+  avatar_url                      TEXT,
+
+  -- Emergency Contact
+  emergency_contact_name          TEXT,
+  emergency_contact_relationship  TEXT,
+  emergency_contact_phone         TEXT,
+
+  -- Bank Details
+  bank_name                       TEXT,
+  bank_account_number             TEXT,
+  bank_routing_number             TEXT,
+
+  created_at                      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at                      TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Auto-generate employee_code via trigger
+CREATE OR REPLACE FUNCTION generate_employee_code()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.employee_code IS NULL THEN
+    NEW.employee_code := 'EMP-' || TO_CHAR(NOW(), 'YYYY') || '-' || LPAD(CAST((SELECT COUNT(*) FROM public.employees) + 1 AS TEXT), 3, '0');
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS set_employee_code ON public.employees;
+CREATE TRIGGER set_employee_code
+  BEFORE INSERT ON public.employees
+  FOR EACH ROW
+  EXECUTE FUNCTION generate_employee_code();
+
+-- ============================================================
+-- 2. ATTENDANCE TABLE
+-- One row per employee per day. Tracks check-in, check-out,
+-- breaks, work mode, and computed work hours.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.attendance (
+  id                    UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id               UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  employee_id           UUID REFERENCES public.employees(id) ON DELETE SET NULL,
+  date                  DATE NOT NULL,
+  status                TEXT DEFAULT 'present' CHECK (status IN ('present', 'absent', 'late', 'half_day', 'on_leave')),
+
+  -- Check-in / Check-out
+  check_in_time         TIMESTAMPTZ,
+  check_out_time        TIMESTAMPTZ,
+  check_in_note         TEXT,
+  check_out_note        TEXT,
+
+  -- Break tracking (latest break stored directly; history computed from work_hours)
+  break_start_time      TIMESTAMPTZ,
+  break_end_time        TIMESTAMPTZ,
+  break_type            TEXT DEFAULT 'other' CHECK (break_type IN ('lunch', 'tea', 'short', 'meeting', 'other')),
+  total_break_minutes   INTEGER DEFAULT 0,   -- accumulated across all breaks today
+
+  -- Work details
+  work_mode             TEXT DEFAULT 'office' CHECK (work_mode IN ('office', 'remote', 'hybrid', 'onsite')),
+  location              TEXT,
+  work_hours            NUMERIC(5, 2) DEFAULT 0,  -- net work hours (excluding breaks)
+
+  created_at            TIMESTAMPTZ DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ DEFAULT NOW(),
+
+  -- Only one record per user per day
+  UNIQUE (user_id, date)
+);
+
+-- Index for fast user + date queries
+CREATE INDEX IF NOT EXISTS idx_attendance_user_date ON public.attendance (user_id, date DESC);
+
+-- ============================================================
+-- 3. ROW LEVEL SECURITY (RLS)
+-- Employees can only read/write their own records.
+-- Service role (backend) bypasses RLS.
+-- ============================================================
+
+-- Enable RLS
+ALTER TABLE public.employees ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
+
+-- Employees: user can read/update their own row
+CREATE POLICY "employees_select_own" ON public.employees
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "employees_insert_own" ON public.employees
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "employees_update_own" ON public.employees
+  FOR UPDATE USING (auth.uid() = user_id);
+
+-- Attendance: user can read/write their own rows
+CREATE POLICY "attendance_select_own" ON public.attendance
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "attendance_insert_own" ON public.attendance
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "attendance_update_own" ON public.attendance
+  FOR UPDATE USING (auth.uid() = user_id);
+
+-- ============================================================
+-- 4. UPDATED_AT AUTO-UPDATE TRIGGER
+-- ============================================================
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS set_employees_updated_at ON public.employees;
+CREATE TRIGGER set_employees_updated_at
+  BEFORE UPDATE ON public.employees
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS set_attendance_updated_at ON public.attendance;
+CREATE TRIGGER set_attendance_updated_at
+  BEFORE UPDATE ON public.attendance
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
