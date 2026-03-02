@@ -41,20 +41,82 @@ export default defineConfig({
    // Optimize chunk splitting
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Vendor chunks
-          'react-vendor': ['react', 'react-dom', 'react-hook-form'],
-          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select'],
-          'utils-vendor': ['date-fns', 'clsx', 'tailwind-merge'],
-          'charts-vendor': ['recharts'],
-          'pdf-vendor': ['jspdf', 'jspdf-autotable'],
+        manualChunks: (id) => {
+          // Vendor chunks - handle in priority order
+          if (id.includes('node_modules')) {
+            // Core React only (no dependencies on other vendors)
+            if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('scheduler')) {
+              return 'react-vendor';
+            }
+            // React ecosystem libraries that don't depend on react
+            if (id.includes('react-hook-form') || id.includes('@hookform')) {
+              return 'forms-vendor';
+            }
+            // UI libraries
+            if (id.includes('@radix-ui')) {
+              return 'ui-vendor';
+            }
+            // Icons
+            if (id.includes('lucide-react')) {
+              return 'icons-vendor';
+            }
+            // Utility libraries
+            if (id.includes('date-fns') || id.includes('clsx') || id.includes('tailwind-merge')) {
+              return 'utils-vendor';
+            }
+            // Charts
+            if (id.includes('recharts')) {
+              return 'charts-vendor';
+            }
+            // PDF libraries
+            if (id.includes('jspdf') || id.includes('autotable')) {
+              return 'pdf-vendor';
+            }
+            // Excel libraries
+            if (id.includes('xlsx') || id.includes('jszip')) {
+              return 'excel-vendor';
+            }
+            // HTML to PDF/Canvas
+            if (id.includes('html2pdf') || id.includes('html2canvas')) {
+              return 'html2canvas.esm';
+            }
+            // DOMPurify
+            if (id.includes('dompurify') || id.includes('purify')) {
+              return 'purify.es';
+            }
+            // All other node_modules
+            return 'vendor';
+          }
+          
+          // Split large application pages
+          if (id.includes('/pages/hrm/')) {
+            return 'hrm-pages';
+          }
+          if (id.includes('/pages/leads/')) {
+            return 'leads-pages';
+          }
+          if (id.includes('/pages/attendance/')) {
+            return 'attendance-pages';
+          }
+          if (id.includes('/pages/profile/')) {
+            return 'profile-pages';
+          }
+          if (id.includes('/pages/recruitment/')) {
+            return 'recruitment-pages';
+          }
+          if (id.includes('/pages/settings/')) {
+            return 'settings-pages';
+          }
+          if (id.includes('/components/ui/')) {
+            return 'ui-components';
+          }
         },
       },
     },
     // Enable source maps for debugging
     sourcemap: process.env.NODE_ENV !== 'production',
-    // Optimize chunk size
-    chunkSizeWarningLimit: 1000,
+    // Optimize chunk size - increased limit after code splitting
+    chunkSizeWarningLimit: 1500,
     // Minification options
     minify: 'esbuild',
     target: 'esnext',

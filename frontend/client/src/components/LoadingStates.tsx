@@ -97,13 +97,13 @@ export function CardSkeleton({ count = 1 }: CardSkeletonProps) {
   return (
     <>
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="bg-white/70 dark:bg-gray-900/80 backdrop-blur-lg p-6 rounded-2xl border border-gray-100 dark:border-gray-800">
+        <div key={i} className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg p-6 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <Skeleton variant="text" width="60%" />
-            <Skeleton variant="circular" width="40px" height="40px" />
+            <Skeleton variant="text" width="60%" height="14px" />
+            <Skeleton variant="circular" width="48px" height="48px" />
           </div>
-          <Skeleton variant="text" width="40%" height="36px" className="mb-2" />
-          <Skeleton variant="text" width="50%" />
+          <Skeleton variant="text" width="45%" height="36px" className="mb-3" />
+          <Skeleton variant="text" width="55%" height="14px" />
         </div>
       ))}
     </>

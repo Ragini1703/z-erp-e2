@@ -156,19 +156,16 @@ function AppRouter() {
 function App() {
   useEffect(() => {
     const handleError = (event: ErrorEvent) => {
-      console.error("❌ GLOBAL ERROR CAUGHT:");
-      console.error("Message:", event.message);
-      console.error("Error:", event.error);
-      console.error("Filename:", event.filename);
-      console.error("Line:", event.lineno, "Column:", event.colno);
-      console.error("Stack:", event.error?.stack);
+      console.error("Global Error:", {
+        message: event.message,
+        error: event.error,
+        location: `${event.filename}:${event.lineno}:${event.colno}`
+      });
       event.preventDefault();
     };
 
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      console.error("❌ UNHANDLED PROMISE REJECTION:");
-      console.error("Reason:", event.reason);
-      console.error("Promise:", event.promise);
+      console.error("Unhandled Promise Rejection:", event.reason);
       event.preventDefault();
     };
 

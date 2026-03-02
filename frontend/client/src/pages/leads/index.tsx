@@ -217,11 +217,13 @@ interface Lead {
 }
 
 type ViewMode = "table" | "kanban" | "grid";
+type LeadFilterTab = "all" | "my" | "new" | "recent" | "hot" | "qualified" | "won" | "lost";
 
 // ==================== COMPONENT ====================
 export default function LeadsModule() {
   const { toast } = useToast();
   const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [leadFilterTab, setLeadFilterTab] = useState<LeadFilterTab>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -819,6 +821,42 @@ export default function LeadsModule() {
 
   // ==================== COMPUTED VALUES ====================
   const filteredLeads = leads.filter(lead => {
+    // Apply tab filter first
+    let matchesTab = true;
+    const currentUser = "John Smith"; // In real app, get from auth context
+    const today = new Date();
+    const threeDaysAgo = new Date(today);
+    threeDaysAgo.setDate(today.getDate() - 3);
+    
+    switch (leadFilterTab) {
+      case "my":
+        matchesTab = lead.assignedTo === currentUser;
+        break;
+      case "new":
+        matchesTab = lead.status === "new";
+        break;
+      case "recent":
+        // Leads with activity in last 3 days
+        const leadDate = new Date(lead.lastContact || lead.createdDate);
+        matchesTab = leadDate >= threeDaysAgo;
+        break;
+      case "hot":
+        matchesTab = lead.temperature === "hot";
+        break;
+      case "qualified":
+        matchesTab = lead.status === "qualified";
+        break;
+      case "won":
+        matchesTab = lead.status === "won";
+        break;
+      case "lost":
+        matchesTab = lead.status === "lost";
+        break;
+      case "all":
+      default:
+        matchesTab = true;
+    }
+    
     const matchesSearch = 
       (lead.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (lead.company || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -829,7 +867,7 @@ export default function LeadsModule() {
     const matchesAssigned = assignedFilter.length === 0 || assignedFilter.includes(lead.assignedTo);
     const matchesScore = (lead.leadScore || 0) >= scoreRange[0] && (lead.leadScore || 0) <= scoreRange[1];
 
-    return matchesSearch && matchesStatus && matchesSource && matchesAssigned && matchesScore;
+    return matchesTab && matchesSearch && matchesStatus && matchesSource && matchesAssigned && matchesScore;
   });
 
   const stats = {
@@ -1426,36 +1464,36 @@ export default function LeadsModule() {
         {/* Header Section */}
         <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
           <div className="px-6 py-6">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">CRM</h1>
-                <p className="text-gray-500 mt-1">Leads Management</p>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">CRM</h1>
+                <p className="text-sm sm:text-base text-gray-500 mt-1">Leads Management</p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={() => setShowWorkflowGuide(true)} 
                   className="hover:bg-purple-50 hover:border-purple-500"
                 >
-                  <BookOpen className="w-4 h-4 mr-2" />
-                  <span className="hidden sm:inline">View Workflow</span>
+                  <BookOpen className="w-4 h-4 md:mr-2" />
+                  <span className="hidden md:inline">View Workflow</span>
                 </Button>
                 <Link href="/leads/bulk-import">
                   <Button variant="outline" size="sm" className="hover:bg-blue-50 hover:border-blue-500">
-                    <Import className="w-4 h-4 mr-2" />
-                    <span className="hidden sm:inline">Bulk Import</span>
+                    <Import className="w-4 h-4 md:mr-2" />
+                    <span className="hidden md:inline">Import</span>
                   </Button>
                 </Link>
                 <Button variant="outline" size="sm" onClick={handleExport} className="hover:bg-green-50 hover:border-green-500">
-                  <Download className="w-4 h-4 mr-2" />
-                  <span className="hidden sm:inline">Export</span>
+                  <Download className="w-4 h-4 md:mr-2" />
+                  <span className="hidden md:inline">Export</span>
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="hover:bg-purple-50 hover:border-purple-500">
-                      <MoreVertical className="w-4 h-4 sm:mr-2" />
-                      <span className="hidden sm:inline">Bulk Actions</span>
+                      <MoreVertical className="w-4 h-4 md:mr-2" />
+                      <span className="hidden md:inline">Bulk Actions</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
@@ -1481,72 +1519,299 @@ export default function LeadsModule() {
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <Button onClick={openAddLeadModal} className="bg-blue-600 hover:bg-blue-700">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Lead
+                  <Plus className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Add Lead</span>
                 </Button>
               </div>
             </div>
 
+            {/* Lead Filter Tabs - Step-by-Step Enhancement */}
+            <div className="mb-6">
+              {/* Mobile: Dropdown Selector */}
+              <div className="block lg:hidden">
+                <Select value={leadFilterTab} onValueChange={(value) => setLeadFilterTab(value as LeadFilterTab)}>
+                  <SelectTrigger className="w-full h-12 border-2 border-gray-200 shadow-sm">
+                    <SelectValue>
+                      <div className="flex items-center gap-2">
+                        {leadFilterTab === "all" && <><Users className="w-4 h-4" /> All Leads ({leads.length})</>}
+                        {leadFilterTab === "my" && <><User className="w-4 h-4" /> My Leads ({leads.filter(l => l.assignedTo === "John Smith").length})</>}
+                        {leadFilterTab === "new" && <><Sparkles className="w-4 h-4" /> New Leads ({leads.filter(l => l.status === "new").length})</>}
+                        {leadFilterTab === "recent" && <><Activity className="w-4 h-4" /> Recently Engaged</>}
+                        {leadFilterTab === "hot" && <><Flame className="w-4 h-4" /> Hot Leads ({leads.filter(l => l.temperature === "hot").length})</>}
+                        {leadFilterTab === "qualified" && <><CheckCircle className="w-4 h-4" /> Qualified ({leads.filter(l => l.status === "qualified").length})</>}
+                        {leadFilterTab === "won" && <><Award className="w-4 h-4" /> Won ({leads.filter(l => l.status === "won").length})</>}
+                        {leadFilterTab === "lost" && <><XCircle className="w-4 h-4" /> Lost ({leads.filter(l => l.status === "lost").length})</>}
+                      </div>
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4" /> All Leads
+                        <Badge variant="secondary" className="ml-2">{leads.length}</Badge>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="my">
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4" /> My Leads
+                        <Badge variant="secondary" className="ml-2">{leads.filter(l => l.assignedTo === "John Smith").length}</Badge>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="new">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-green-600" /> New Leads
+                        <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700">{leads.filter(l => l.status === "new").length}</Badge>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="recent">
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-purple-600" /> Recently Engaged
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="hot">
+                      <div className="flex items-center gap-2">
+                        <Flame className="w-4 h-4 text-red-600" /> Hot Leads
+                        <Badge variant="secondary" className="ml-2 bg-red-100 text-red-700">{leads.filter(l => l.temperature === "hot").length}</Badge>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="qualified">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-indigo-600" /> Qualified
+                        <Badge variant="secondary" className="ml-2 bg-indigo-100 text-indigo-700">{leads.filter(l => l.status === "qualified").length}</Badge>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="won">
+                      <div className="flex items-center gap-2">
+                        <Award className="w-4 h-4 text-emerald-600" /> Won
+                        <Badge variant="secondary" className="ml-2 bg-emerald-100 text-emerald-700">{leads.filter(l => l.status === "won").length}</Badge>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="lost">
+                      <div className="flex items-center gap-2">
+                        <XCircle className="w-4 h-4 text-gray-600" /> Lost
+                        <Badge variant="secondary" className="ml-2 bg-gray-100 text-gray-700">{leads.filter(l => l.status === "lost").length}</Badge>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Desktop: Tab Navigation */}
+              <div className="hidden lg:block bg-white rounded-lg border-2 border-gray-200 p-1 shadow-sm overflow-hidden">
+                <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                  {/* All Leads Tab */}
+                  <button
+                    onClick={() => setLeadFilterTab("all")}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                      leadFilterTab === "all"
+                        ? "bg-blue-600 text-white shadow-md transform scale-105"
+                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                    }`}
+                  >
+                    <Users className="w-4 h-4" />
+                    <span>All Leads</span>
+                    <Badge variant="secondary" className={`ml-1 ${leadFilterTab === "all" ? "bg-blue-500 text-white border-0" : "bg-gray-200 text-gray-700"}`}>
+                      {leads.length}
+                    </Badge>
+                  </button>
+
+                  {/* My Leads Tab */}
+                  <button
+                    onClick={() => setLeadFilterTab("my")}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                      leadFilterTab === "my"
+                        ? "bg-blue-600 text-white shadow-md transform scale-105"
+                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                    }`}
+                  >
+                    <User className="w-4 h-4" />
+                    <span>My Leads</span>
+                    <Badge variant="secondary" className={`ml-1 ${leadFilterTab === "my" ? "bg-blue-500 text-white border-0" : "bg-gray-200 text-gray-700"}`}>
+                      {leads.filter(l => l.assignedTo === "John Smith").length}
+                    </Badge>
+                  </button>
+
+                  {/* New Leads Tab */}
+                  <button
+                    onClick={() => setLeadFilterTab("new")}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                      leadFilterTab === "new"
+                        ? "bg-green-600 text-white shadow-md transform scale-105"
+                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                    }`}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>New Leads</span>
+                    <Badge variant="secondary" className={`ml-1 ${leadFilterTab === "new" ? "bg-green-500 text-white border-0" : "bg-green-100 text-green-700"}`}>
+                      {leads.filter(l => l.status === "new").length}
+                    </Badge>
+                  </button>
+
+                  {/* Recently Engaged Tab */}
+                  <button
+                    onClick={() => setLeadFilterTab("recent")}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                      leadFilterTab === "recent"
+                        ? "bg-purple-600 text-white shadow-md transform scale-105"
+                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                    }`}
+                  >
+                    <Activity className="w-4 h-4" />
+                    <span>Recently Engaged</span>
+                    <Badge variant="secondary" className={`ml-1 ${leadFilterTab === "recent" ? "bg-purple-500 text-white border-0" : "bg-purple-100 text-purple-700"}`}>
+                      {(() => {
+                        const today = new Date();
+                        const threeDaysAgo = new Date(today);
+                        threeDaysAgo.setDate(today.getDate() - 3);
+                        return leads.filter(l => {
+                          const leadDate = new Date(l.lastContact || l.createdDate);
+                          return leadDate >= threeDaysAgo;
+                        }).length;
+                      })()}
+                    </Badge>
+                  </button>
+
+                  {/* Hot Leads Tab */}
+                  <button
+                    onClick={() => setLeadFilterTab("hot")}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                      leadFilterTab === "hot"
+                        ? "bg-red-600 text-white shadow-md transform scale-105"
+                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                    }`}
+                  >
+                    <Flame className="w-4 h-4" />
+                    <span>Hot Leads</span>
+                    <Badge variant="secondary" className={`ml-1 ${leadFilterTab === "hot" ? "bg-red-500 text-white border-0" : "bg-red-100 text-red-700"}`}>
+                      {leads.filter(l => l.temperature === "hot").length}
+                    </Badge>
+                  </button>
+
+                  {/* Qualified Tab */}
+                  <button
+                    onClick={() => setLeadFilterTab("qualified")}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                      leadFilterTab === "qualified"
+                        ? "bg-indigo-600 text-white shadow-md transform scale-105"
+                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                    }`}
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Qualified</span>
+                    <Badge variant="secondary" className={`ml-1 ${leadFilterTab === "qualified" ? "bg-indigo-500 text-white border-0" : "bg-indigo-100 text-indigo-700"}`}>
+                      {leads.filter(l => l.status === "qualified").length}
+                    </Badge>
+                  </button>
+
+                  {/* Won Tab */}
+                  <button
+                    onClick={() => setLeadFilterTab("won")}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                      leadFilterTab === "won"
+                        ? "bg-emerald-600 text-white shadow-md transform scale-105"
+                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                    }`}
+                  >
+                    <Award className="w-4 h-4" />
+                    <span>Won</span>
+                    <Badge variant="secondary" className={`ml-1 ${leadFilterTab === "won" ? "bg-emerald-500 text-white border-0" : "bg-emerald-100 text-emerald-700"}`}>
+                      {leads.filter(l => l.status === "won").length}
+                    </Badge>
+                  </button>
+
+                  {/* Lost Tab */}
+                  <button
+                    onClick={() => setLeadFilterTab("lost")}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                      leadFilterTab === "lost"
+                        ? "bg-gray-600 text-white shadow-md transform scale-105"
+                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                    }`}
+                  >
+                    <XCircle className="w-4 h-4" />
+                    <span>Lost</span>
+                    <Badge variant="secondary" className={`ml-1 ${leadFilterTab === "lost" ? "bg-gray-500 text-white border-0" : "bg-gray-200 text-gray-700"}`}>
+                      {leads.filter(l => l.status === "lost").length}
+                    </Badge>
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
-              <Card className="shadow-sm">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <Users className="w-5 h-5 text-blue-600" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 md:gap-4 mb-6">
+              <Card className="shadow-sm hover:shadow-md transition-shadow duration-200 border-2">
+                <CardContent className="p-4 md:p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="p-2 bg-blue-50 rounded-lg">
+                      <Users className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
+                    </div>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-                  <p className="text-sm text-gray-600">Total Leads</p>
+                  <p className="text-xl md:text-2xl font-bold text-gray-900">{stats.total}</p>
+                  <p className="text-xs md:text-sm text-gray-600 font-medium mt-1">Total Leads</p>
                 </CardContent>
               </Card>
-              <Card className="shadow-sm">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <Sparkles className="w-5 h-5 text-blue-500" />
+              <Card className="shadow-sm hover:shadow-md transition-shadow duration-200 border-2">
+                <CardContent className="p-4 md:p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="p-2 bg-blue-50 rounded-lg">
+                      <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-blue-500" />
+                    </div>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.new}</p>
-                  <p className="text-sm text-gray-600">New</p>
+                  <p className="text-xl md:text-2xl font-bold text-gray-900">{stats.new}</p>
+                  <p className="text-xs md:text-sm text-gray-600 font-medium mt-1">New</p>
                 </CardContent>
               </Card>
-              <Card className="shadow-sm">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <CheckCircle className="w-5 h-5 text-purple-600" />
+              <Card className="shadow-sm hover:shadow-md transition-shadow duration-200 border-2">
+                <CardContent className="p-4 md:p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="p-2 bg-purple-50 rounded-lg">
+                      <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-purple-600" />
+                    </div>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.qualified}</p>
-                  <p className="text-sm text-gray-600">Qualified</p>
+                  <p className="text-xl md:text-2xl font-bold text-gray-900">{stats.qualified}</p>
+                  <p className="text-xs md:text-sm text-gray-600 font-medium mt-1">Qualified</p>
                 </CardContent>
               </Card>
-              <Card className="shadow-sm">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <Award className="w-5 h-5 text-green-600" />
+              <Card className="shadow-sm hover:shadow-md transition-shadow duration-200 border-2">
+                <CardContent className="p-4 md:p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="p-2 bg-green-50 rounded-lg">
+                      <Award className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
+                    </div>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.won}</p>
-                  <p className="text-sm text-gray-600">Won</p>
+                  <p className="text-xl md:text-2xl font-bold text-gray-900">{stats.won}</p>
+                  <p className="text-xs md:text-sm text-gray-600 font-medium mt-1">Won</p>
                 </CardContent>
               </Card>
-              <Card className="shadow-sm">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <Flame className="w-5 h-5 text-red-500" />
+              <Card className="shadow-sm hover:shadow-md transition-shadow duration-200 border-2">
+                <CardContent className="p-4 md:p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="p-2 bg-red-50 rounded-lg">
+                      <Flame className="w-4 h-4 md:w-5 md:h-5 text-red-500" />
+                    </div>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.hotLeads}</p>
-                  <p className="text-sm text-gray-600">Hot Leads</p>
+                  <p className="text-xl md:text-2xl font-bold text-gray-900">{stats.hotLeads}</p>
+                  <p className="text-xs md:text-sm text-gray-600 font-medium mt-1">Hot Leads</p>
                 </CardContent>
               </Card>
-              <Card className="shadow-sm">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <BarChart3 className="w-5 h-5 text-amber-600" />
+              <Card className="shadow-sm hover:shadow-md transition-shadow duration-200 border-2">
+                <CardContent className="p-4 md:p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="p-2 bg-amber-50 rounded-lg">
+                      <BarChart3 className="w-4 h-4 md:w-5 md:h-5 text-amber-600" />
+                    </div>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.avgScore}</p>
-                  <p className="text-sm text-gray-600">Avg Score</p>
+                  <p className="text-xl md:text-2xl font-bold text-gray-900">{stats.avgScore}</p>
+                  <p className="text-xs md:text-sm text-gray-600 font-medium mt-1">Avg Score</p>
                 </CardContent>
               </Card>
-              <Card className="shadow-sm">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <DollarSign className="w-5 h-5 text-green-600" />
+              <Card className="shadow-sm hover:shadow-md transition-shadow duration-200 border-2">
+                <CardContent className="p-4 md:p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="p-2 bg-green-50 rounded-lg">
+                      <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
+                    </div>
                   </div>
                   <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalValue)}</p>
                   <p className="text-sm text-gray-600">Total Value</p>
@@ -1554,76 +1819,124 @@ export default function LeadsModule() {
               </Card>
             </div>
 
+            {/* Active Filter Indicator */}
+            {leadFilterTab !== "all" && (
+              <div className="mb-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="p-1.5 sm:p-2 bg-white rounded-lg shadow-sm flex-shrink-0">
+                      {leadFilterTab === "my" && <User className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />}
+                      {leadFilterTab === "new" && <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />}
+                      {leadFilterTab === "recent" && <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />}
+                      {leadFilterTab === "hot" && <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />}
+                      {leadFilterTab === "qualified" && <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />}
+                      {leadFilterTab === "won" && <Award className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />}
+                      {leadFilterTab === "lost" && <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs sm:text-sm text-gray-600 font-medium">Viewing:</p>
+                      <p className="text-base sm:text-lg font-bold text-gray-900 truncate">
+                        {leadFilterTab === "my" && "My Leads"}
+                        {leadFilterTab === "new" && "New Leads"}
+                        {leadFilterTab === "recent" && "Recently Engaged"}
+                        {leadFilterTab === "hot" && "Hot Leads"}
+                        {leadFilterTab === "qualified" && "Qualified Leads"}
+                        {leadFilterTab === "won" && "Won Deals"}
+                        {leadFilterTab === "lost" && "Lost Leads"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                    <div className="flex-1 sm:flex-initial text-left sm:text-right">
+                      <p className="text-xl sm:text-2xl font-bold text-blue-600">{filteredLeads.length}</p>
+                      <p className="text-xs text-gray-600">Leads in this view</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setLeadFilterTab("all")}
+                      className="hover:bg-white flex-shrink-0"
+                    >
+                      <X className="w-4 h-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Clear Filter</span>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Search and Filters */}
-            <div className="flex flex-col md:flex-row gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                 <Input
-                  placeholder="Search leads by name, company, or email..."
+                  placeholder="Search leads..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 h-11 bg-gray-50 border-gray-300"
+                  className="pl-10 h-10 sm:h-11 bg-gray-50 border-gray-300 text-sm sm:text-base"
                 />
               </div>
-              <Button
-                variant={showFilters ? "default" : "outline"}
-                onClick={() => setShowFilters(!showFilters)}
-                className="h-11"
-              >
-                <SlidersHorizontal className="w-4 h-4 mr-2" />
-                Filters
-                {(statusFilter.length + sourceFilter.length + assignedFilter.length) > 0 && (
-                  <Badge className="ml-2 bg-blue-600">
-                    {statusFilter.length + sourceFilter.length + assignedFilter.length}
-                  </Badge>
-                )}
-              </Button>
-              <div className="flex items-center gap-2 border border-gray-300 rounded-lg p-1 bg-gray-50">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={viewMode === "table" ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setViewMode("table")}
-                        className="h-9"
-                      >
-                        <Columns3 className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Table View</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={viewMode === "kanban" ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setViewMode("kanban")}
-                        className="h-9"
-                      >
-                        <LayoutGrid className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Kanban View</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant={viewMode === "grid" ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setViewMode("grid")}
-                        className="h-9"
-                      >
-                        <Grid3x3 className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Grid View</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={showFilters ? "default" : "outline"}
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="h-10 sm:h-11 flex-1 sm:flex-initial"
+                >
+                  <SlidersHorizontal className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Filters</span>
+                  {(statusFilter.length + sourceFilter.length + assignedFilter.length) > 0 && (
+                    <Badge className="ml-2 bg-blue-600">
+                      {statusFilter.length + sourceFilter.length + assignedFilter.length}
+                    </Badge>
+                  )}
+                </Button>
+                <div className="flex items-center gap-1 border border-gray-300 rounded-lg p-1 bg-gray-50">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={viewMode === "table" ? "default" : "ghost"}
+                          size="sm"
+                          onClick={() => setViewMode("table")}
+                          className="h-9"
+                        >
+                          <Columns3 className="w-4 h-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Table View</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={viewMode === "kanban" ? "default" : "ghost"}
+                          size="sm"
+                          onClick={() => setViewMode("kanban")}
+                          className="h-9"
+                        >
+                          <LayoutGrid className="w-4 h-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Kanban View</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={viewMode === "grid" ? "default" : "ghost"}
+                          size="sm"
+                          onClick={() => setViewMode("grid")}
+                          className="h-9"
+                        >
+                          <Grid3x3 className="w-4 h-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Grid View</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
               </div>
             </div>
 
@@ -1730,7 +2043,7 @@ export default function LeadsModule() {
         </div>
 
         {/* Main Content */}
-        <div className="p-6">
+        <div className="p-3 sm:p-4 md:p-6">
           {/* TABLE VIEW */}
           {viewMode === "table" && (
             <div className="space-y-3">
@@ -1740,51 +2053,51 @@ export default function LeadsModule() {
                   className="hover:shadow-lg transition-all duration-200 cursor-pointer border border-gray-200 bg-white"
                   onClick={() => openDetailModal(lead)}
                 >
-                  <CardContent className="p-5">
-                    <div className="flex items-center gap-6">
+                  <CardContent className="p-3 sm:p-4 md:p-5">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 md:gap-6">
                       {/* Avatar & Name */}
-                      <div className="flex items-center gap-4 flex-1 min-w-0">
-                        <Avatar className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold">
+                      <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                        <Avatar className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold flex-shrink-0">
                           <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
                             {getInitials(lead.name)}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0 text-container">
                           <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold text-gray-900 text-base truncate">{lead.name}</h3>
-                            {lead.temperature && getTemperatureIcon(lead.temperature)}
+                            <h3 className="font-semibold text-gray-900 text-base truncate flex-1 min-w-0" title={lead.name}>{lead.name}</h3>
+                            {lead.temperature && <span className="flex-shrink-0">{getTemperatureIcon(lead.temperature)}</span>}
                           </div>
-                          <p className="text-sm text-gray-600 truncate">{lead.company}</p>
-                          <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <Mail className="w-3 h-3" />
-                              {lead.email}
+                          <p className="text-sm text-gray-600 truncate" title={lead.company}>{lead.company}</p>
+                          <div className="flex items-center gap-2 sm:gap-3 mt-1 text-xs text-gray-500 flex-wrap">
+                            <span className="flex items-center gap-1 min-w-0">
+                              <Mail className="w-3 h-3 flex-shrink-0" />
+                              <span className="truncate max-w-[150px]" title={lead.email}>{lead.email}</span>
                             </span>
-                            <span className="flex items-center gap-1">
-                              <Phone className="w-3 h-3" />
-                              {lead.phone}
+                            <span className="flex items-center gap-1 flex-shrink-0">
+                              <Phone className="w-3 h-3 flex-shrink-0" />
+                              <span>{lead.phone}</span>
                             </span>
                           </div>
                         </div>
                       </div>
 
                       {/* Tags & Badges */}
-                      <div className="flex items-center gap-2 flex-wrap max-w-xs">
-                        <Badge className={`${getStatusColor(lead.status)} text-white font-medium capitalize`}>
+                      <div className="hidden lg:flex items-center gap-2 flex-wrap max-w-[200px] xl:max-w-xs flex-shrink-0">
+                        <Badge className={`${getStatusColor(lead.status)} text-white font-medium capitalize flex-shrink-0`}>
                           {lead.status}
                         </Badge>
-                        <Badge variant="outline" className={getPriorityColor(lead.priority)}>
+                        <Badge variant="outline" className={`${getPriorityColor(lead.priority)} flex-shrink-0`}>
                           {lead.priority}
                         </Badge>
                         {lead.tags?.slice(0, 2).map(tag => (
-                          <Badge key={tag} variant="secondary" className="text-xs">
+                          <Badge key={tag} variant="secondary" className="text-xs flex-shrink-0">
                             {tag}
                           </Badge>
                         ))}
                       </div>
 
                       {/* Score */}
-                      <div className="text-center min-w-[80px]">
+                      <div className="hidden md:flex flex-col items-center text-center min-w-[80px] flex-shrink-0">
                         <div className="flex items-center justify-center gap-2 mb-1">
                           <div className={`text-2xl font-bold ${getScoreColor(lead.leadScore || 0)}`}>
                             {lead.leadScore}
@@ -1795,25 +2108,25 @@ export default function LeadsModule() {
                       </div>
 
                       {/* Value */}
-                      <div className="text-right min-w-[100px]">
-                        <p className="text-lg font-bold text-green-600">
+                      <div className="hidden sm:flex flex-col items-end text-right min-w-[100px] flex-shrink-0">
+                        <p className="text-base sm:text-lg font-bold text-green-600">
                           {formatCurrency(lead.leadValue || 0)}
                         </p>
                         <p className="text-xs text-gray-500">Lead Value</p>
                       </div>
 
                       {/* Assigned */}
-                      <div className="text-center min-w-[120px]">
+                      <div className="hidden xl:flex flex-col items-center text-center min-w-[100px] max-w-[120px] flex-shrink-0">
                         <Avatar className="w-8 h-8 mx-auto mb-1">
                           <AvatarFallback className="bg-gray-200 text-gray-700 text-xs">
                             {getInitials(lead.assignedTo)}
                           </AvatarFallback>
                         </Avatar>
-                        <p className="text-xs text-gray-600 truncate">{lead.assignedTo}</p>
+                        <p className="text-xs text-gray-600 truncate max-w-full" title={lead.assignedTo}>{lead.assignedTo}</p>
                       </div>
 
                       {/* Actions */}
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -1821,7 +2134,7 @@ export default function LeadsModule() {
                                 variant="ghost" 
                                 size="icon" 
                                 onClick={(e) => handleCall(lead, e)}
-                                className="hover:bg-blue-50 hover:text-blue-600"
+                                className="h-9 w-9 hover:bg-blue-50 hover:text-blue-600"
                               >
                                 <Phone className="w-4 h-4" />
                               </Button>
@@ -1836,7 +2149,7 @@ export default function LeadsModule() {
                                 variant="ghost" 
                                 size="icon" 
                                 onClick={(e) => handleEmail(lead, e)}
-                                className="hover:bg-purple-50 hover:text-purple-600"
+                                className="h-9 w-9 hover:bg-purple-50 hover:text-purple-600"
                               >
                                 <Mail className="w-4 h-4" />
                               </Button>
@@ -1846,7 +2159,7 @@ export default function LeadsModule() {
                         </TooltipProvider>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" className="hover:bg-gray-100">
+                            <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-gray-100">
                               <MoreVertical className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -1882,13 +2195,49 @@ export default function LeadsModule() {
               {filteredLeads.length === 0 && (
                 <Card>
                   <CardContent className="p-12 text-center">
-                    <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-600 mb-2">No leads found</h3>
-                    <p className="text-gray-500 mb-4">Try adjusting your filters or add a new lead</p>
-                    <Button onClick={openAddLeadModal}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Lead
-                    </Button>
+                    {leadFilterTab === "all" && <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />}
+                    {leadFilterTab === "my" && <User className="w-16 h-16 text-blue-300 mx-auto mb-4" />}
+                    {leadFilterTab === "new" && <Sparkles className="w-16 h-16 text-green-300 mx-auto mb-4" />}
+                    {leadFilterTab === "recent" && <Activity className="w-16 h-16 text-purple-300 mx-auto mb-4" />}
+                    {leadFilterTab === "hot" && <Flame className="w-16 h-16 text-red-300 mx-auto mb-4" />}
+                    {leadFilterTab === "qualified" && <CheckCircle className="w-16 h-16 text-indigo-300 mx-auto mb-4" />}
+                    {leadFilterTab === "won" && <Award className="w-16 h-16 text-emerald-300 mx-auto mb-4" />}
+                    {leadFilterTab === "lost" && <XCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />}
+                    
+                    <h3 className="text-lg font-semibold text-gray-600 mb-2">
+                      {leadFilterTab === "all" && "No leads found"}
+                      {leadFilterTab === "my" && "No leads assigned to you"}
+                      {leadFilterTab === "new" && "No new leads at the moment"}
+                      {leadFilterTab === "recent" && "No recently engaged leads"}
+                      {leadFilterTab === "hot" && "No hot leads right now"}
+                      {leadFilterTab === "qualified" && "No qualified leads yet"}
+                      {leadFilterTab === "won" && "No won deals to display"}
+                      {leadFilterTab === "lost" && "No lost leads found"}
+                    </h3>
+                    
+                    <p className="text-gray-500 mb-4">
+                      {leadFilterTab === "all" && "Get started by adding your first lead to the pipeline"}
+                      {leadFilterTab === "my" && "Leads will appear here when they're assigned to you"}
+                      {leadFilterTab === "new" && "New leads will appear here when they're added to the system"}
+                      {leadFilterTab === "recent" && "Leads with activity in the last 3 days will appear here"}
+                      {leadFilterTab === "hot" && "Leads marked as 'Hot' will appear here"}
+                      {leadFilterTab === "qualified" && "Qualified leads will appear here as they progress through the pipeline"}
+                      {leadFilterTab === "won" && "Closed-won deals will appear here"}
+                      {leadFilterTab === "lost" && "Lost opportunities will be tracked here"}
+                    </p>
+                    
+                    <div className="flex gap-2 justify-center">
+                      <Button onClick={openAddLeadModal}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Lead
+                      </Button>
+                      {leadFilterTab !== "all" && (
+                        <Button variant="outline" onClick={() => setLeadFilterTab("all")}>
+                          <Users className="w-4 h-4 mr-2" />
+                          View All Leads
+                        </Button>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -1931,17 +2280,17 @@ export default function LeadsModule() {
                                 >
                                   <CardContent className="p-4">
                                     <div className="flex items-start gap-3 mb-3">
-                                      <Avatar className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600">
+                                      <Avatar className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 flex-shrink-0">
                                         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
                                           {getInitials(lead.name)}
                                         </AvatarFallback>
                                       </Avatar>
                                       <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-1 mb-1">
-                                          <h4 className="font-semibold text-sm truncate">{lead.name}</h4>
-                                          {lead.temperature && getTemperatureIcon(lead.temperature)}
+                                          <h4 className="font-semibold text-sm truncate flex-1 min-w-0" title={lead.name}>{lead.name}</h4>
+                                          {lead.temperature && <span className="flex-shrink-0">{getTemperatureIcon(lead.temperature)}</span>}
                                         </div>
-                                        <p className="text-xs text-gray-600 truncate">{lead.company}</p>
+                                        <p className="text-xs text-gray-600 truncate" title={lead.company}>{lead.company}</p>
                                       </div>
                                     </div>
                                     
@@ -1975,24 +2324,35 @@ export default function LeadsModule() {
                                       </div>
                                     )}
 
-                                    <div className="flex items-center justify-between pt-2 border-t">
-                                      <div className="flex items-center gap-1">
-                                        <Avatar className="w-5 h-5">
+                                    <div className="flex items-center justify-between pt-2 border-t gap-2">
+                                      <div className="flex items-center gap-1 min-w-0 flex-1">
+                                        <Avatar className="w-5 h-5 flex-shrink-0">
                                           <AvatarFallback className="bg-gray-200 text-gray-700 text-xs">
                                             {getInitials(lead.assignedTo)}
                                           </AvatarFallback>
                                         </Avatar>
-                                        <span className="text-xs text-gray-600">{lead.assignedTo.split(' ')[0]}</span>
+                                        <span className="text-xs text-gray-600 truncate" title={lead.assignedTo}>{lead.assignedTo.split(' ')[0]}</span>
                                       </div>
-                                      <span className="text-xs text-gray-500">{lead.lastContact}</span>
+                                      <span className="text-xs text-gray-500 flex-shrink-0">{lead.lastContact}</span>
                                     </div>
                                   </CardContent>
                                 </Card>
                               ))}
                               
                               {statusLeads.length === 0 && (
-                                <div className="text-center py-8 text-gray-400 text-sm">
-                                  No leads
+                                <div className="text-center py-8 px-4">
+                                  <div className="text-gray-300 mb-2">
+                                    {status === "new" && <Sparkles className="w-8 h-8 mx-auto" />}
+                                    {status === "contacted" && <Phone className="w-8 h-8 mx-auto" />}
+                                    {status === "qualified" && <CheckCircle className="w-8 h-8 mx-auto" />}
+                                    {status === "proposal" && <FileText className="w-8 h-8 mx-auto" />}
+                                    {status === "negotiation" && <MessageSquare className="w-8 h-8 mx-auto" />}
+                                    {status === "won" && <Award className="w-8 h-8 mx-auto" />}
+                                    {status === "lost" && <XCircle className="w-8 h-8 mx-auto" />}
+                                  </div>
+                                  <p className="text-gray-400 text-sm">
+                                    {leadFilterTab !== "all" ? `No ${leadFilterTab} leads` : "No leads"}
+                                  </p>
                                 </div>
                               )}
                             </div>
@@ -2008,27 +2368,27 @@ export default function LeadsModule() {
 
           {/* GRID VIEW */}
           {viewMode === "grid" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
               {filteredLeads.map(lead => (
                 <Card 
                   key={lead.id}
                   className="cursor-pointer hover:shadow-lg transition-all duration-200 border border-gray-200"
                   onClick={() => openDetailModal(lead)}
                 >
-                  <CardContent className="p-5">
+                  <CardContent className="p-4 sm:p-5">
                     <div className="text-center mb-4">
-                      <Avatar className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-blue-500 to-purple-600">
+                      <Avatar className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-blue-500 to-purple-600 flex-shrink-0">
                         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-lg">
                           {getInitials(lead.name)}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="flex items-center justify-center gap-2 mb-1">
-                        <h3 className="font-semibold text-gray-900">{lead.name}</h3>
-                        {lead.temperature && getTemperatureIcon(lead.temperature)}
+                      <div className="flex items-center justify-center gap-2 mb-1 min-w-0">
+                        <h3 className="font-semibold text-gray-900 truncate px-2" title={lead.name}>{lead.name}</h3>
+                        {lead.temperature && <span className="flex-shrink-0">{getTemperatureIcon(lead.temperature)}</span>}
                       </div>
-                      <p className="text-sm text-gray-600">{lead.position}</p>
-                      <p className="text-sm text-gray-500">{lead.company}</p>
-                      <Badge className={`${getStatusColor(lead.status)} text-white mt-2 capitalize`}>
+                      <p className="text-sm text-gray-600 truncate px-2" title={lead.position}>{lead.position}</p>
+                      <p className="text-sm text-gray-500 truncate px-2" title={lead.company}>{lead.company}</p>
+                      <Badge className={`${getStatusColor(lead.status)} text-white mt-2 capitalize inline-flex`}>
                         {lead.status}
                       </Badge>
                     </div>
@@ -2036,13 +2396,13 @@ export default function LeadsModule() {
                     <Separator className="my-3" />
 
                     <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Mail className="w-4 h-4" />
-                        <span className="truncate">{lead.email}</span>
+                      <div className="flex items-center gap-2 text-gray-600 min-w-0">
+                        <Mail className="w-4 h-4 flex-shrink-0" />
+                        <span className="truncate" title={lead.email}>{lead.email}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Phone className="w-4 h-4" />
-                        <span>{lead.phone}</span>
+                      <div className="flex items-center gap-2 text-gray-600 min-w-0">
+                        <Phone className="w-4 h-4 flex-shrink-0" />
+                        <span className="break-all">{lead.phone}</span>
                       </div>
                       {lead.leadValue && (
                         <div className="flex items-center gap-2">
@@ -2078,16 +2438,16 @@ export default function LeadsModule() {
 
                     <Separator className="my-3" />
 
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="w-6 h-6">
+                    <div className="flex items-center justify-between gap-2 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <Avatar className="w-6 h-6 flex-shrink-0">
                           <AvatarFallback className="bg-gray-200 text-gray-700 text-xs">
                             {getInitials(lead.assignedTo)}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="text-xs text-gray-600">{lead.assignedTo}</span>
+                        <span className="text-xs text-gray-600 truncate" title={lead.assignedTo}>{lead.assignedTo}</span>
                       </div>
-                      <span className="text-xs text-gray-500">{lead.lastContact}</span>
+                      <span className="text-xs text-gray-500 flex-shrink-0">{lead.lastContact}</span>
                     </div>
 
                     <div className="flex gap-2 mt-3">
@@ -2143,13 +2503,49 @@ export default function LeadsModule() {
                 <div className="col-span-full">
                   <Card>
                     <CardContent className="p-12 text-center">
-                      <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-gray-600 mb-2">No leads found</h3>
-                      <p className="text-gray-500 mb-4">Try adjusting your filters or add a new lead</p>
-                      <Button onClick={openAddLeadModal}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Lead
-                      </Button>
+                      {leadFilterTab === "all" && <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />}
+                      {leadFilterTab === "my" && <User className="w-16 h-16 text-blue-300 mx-auto mb-4" />}
+                      {leadFilterTab === "new" && <Sparkles className="w-16 h-16 text-green-300 mx-auto mb-4" />}
+                      {leadFilterTab === "recent" && <Activity className="w-16 h-16 text-purple-300 mx-auto mb-4" />}
+                      {leadFilterTab === "hot" && <Flame className="w-16 h-16 text-red-300 mx-auto mb-4" />}
+                      {leadFilterTab === "qualified" && <CheckCircle className="w-16 h-16 text-indigo-300 mx-auto mb-4" />}
+                      {leadFilterTab === "won" && <Award className="w-16 h-16 text-emerald-300 mx-auto mb-4" />}
+                      {leadFilterTab === "lost" && <XCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />}
+                      
+                      <h3 className="text-lg font-semibold text-gray-600 mb-2">
+                        {leadFilterTab === "all" && "No leads found"}
+                        {leadFilterTab === "my" && "No leads assigned to you"}
+                        {leadFilterTab === "new" && "No new leads at the moment"}
+                        {leadFilterTab === "recent" && "No recently engaged leads"}
+                        {leadFilterTab === "hot" && "No hot leads right now"}
+                        {leadFilterTab === "qualified" && "No qualified leads yet"}
+                        {leadFilterTab === "won" && "No won deals to display"}
+                        {leadFilterTab === "lost" && "No lost leads found"}
+                      </h3>
+                      
+                      <p className="text-gray-500 mb-4">
+                        {leadFilterTab === "all" && "Get started by adding your first lead to the pipeline"}
+                        {leadFilterTab === "my" && "Leads will appear here when they're assigned to you"}
+                        {leadFilterTab === "new" && "New leads will appear here when they're added to the system"}
+                        {leadFilterTab === "recent" && "Leads with activity in the last 3 days will appear here"}
+                        {leadFilterTab === "hot" && "Leads marked as 'Hot' will appear here"}
+                        {leadFilterTab === "qualified" && "Qualified leads will appear here as they progress through the pipeline"}
+                        {leadFilterTab === "won" && "Closed-won deals will appear here"}
+                        {leadFilterTab === "lost" && "Lost opportunities will be tracked here"}
+                      </p>
+                      
+                      <div className="flex gap-2 justify-center">
+                        <Button onClick={openAddLeadModal}>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Lead
+                        </Button>
+                        {leadFilterTab !== "all" && (
+                          <Button variant="outline" onClick={() => setLeadFilterTab("all")}>
+                            <Users className="w-4 h-4 mr-2" />
+                            View All Leads
+                          </Button>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
