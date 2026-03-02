@@ -29,6 +29,7 @@ import { Separator } from '@/components/ui/separator';
 import { Calendar } from '@/components/ui/calendar';
 import StatsCard from '@/components/StatsCard';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface LeaveRequest {
   id: string;
@@ -69,13 +70,22 @@ export default function EmployeeProfile() {
   const [otherLeaveType, setOtherLeaveType] = useState('');
   const [showViewLeaveModal, setShowViewLeaveModal] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
-  
+
   const [leaveFile, setLeaveFile] = useState<File | null>(null);
   const [leavePreviewUrl, setLeavePreviewUrl] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  
+
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  // Real user details from Supabase auth
+  const authName: string =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    user?.email?.split('@')[0] ||
+    'Employee';
+  const authEmail: string = user?.email || 'employee@company.com';
 
   // Handlers for profile actions
   const handleSaveProfile = () => {
@@ -102,11 +112,11 @@ export default function EmployeeProfile() {
     };
   }, [leavePreviewUrl]);
 
-  // Mock employee data
+  // Employee data – name & email from real auth; rest are profile placeholders
   const employee = {
     id: 'EMP-2026-001',
-    name: 'John Anderson',
-    email: 'john.anderson@company.com',
+    name: authName,
+    email: authEmail,
     phone: '+1 555-0100',
     department: 'Engineering',
     position: 'Senior Software Engineer',
@@ -205,7 +215,7 @@ export default function EmployeeProfile() {
     },
   ];
 
-  
+
 
   const attendanceRecords: AttendanceRecord[] = [
     {
@@ -482,15 +492,15 @@ export default function EmployeeProfile() {
                     <p className="text-sm truncate font-medium" title={leaveFile.name}>{leaveFile.name}</p>
                     <p className="text-xs text-muted-foreground">{(leaveFile.size / 1024).toFixed(1)} KB</p>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className="flex-shrink-0"
-                    onClick={(e) => { 
+                    onClick={(e) => {
                       e.stopPropagation();
-                      if (leavePreviewUrl) URL.revokeObjectURL(leavePreviewUrl); 
-                      setLeaveFile(null); 
-                      setLeavePreviewUrl(null); 
+                      if (leavePreviewUrl) URL.revokeObjectURL(leavePreviewUrl);
+                      setLeaveFile(null);
+                      setLeavePreviewUrl(null);
                     }}
                   >
                     Remove
@@ -500,14 +510,14 @@ export default function EmployeeProfile() {
             </div>
           </div>
         </div>
-        
+
         <DialogFooter>
           <Button
             variant="outline"
             onClick={() => {
               setShowLeaveModal(false);
-                setLeaveFile(null);
-                setLeavePreviewUrl(null);
+              setLeaveFile(null);
+              setLeavePreviewUrl(null);
             }}
           >
             Cancel
@@ -533,482 +543,482 @@ export default function EmployeeProfile() {
       <div className="space-y-6 p-6">
         {/* Profile Header */}
         <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-4">
-              <Avatar className="w-24 h-24">
-                <AvatarImage src={employee.avatar} />
-                <AvatarFallback className="text-2xl">
-                  {employee.name
-                    .split(' ')
-                    .map((n) => n[0])
-                    .join('')}
-                </AvatarFallback>
-              </Avatar>
-              <div className="space-y-1">
-                <h2 className="text-2xl font-bold">{employee.name}</h2>
-                <p className="text-muted-foreground">{employee.position}</p>
-                <div className="flex items-center gap-4 text-sm">
-                  <span className="flex items-center gap-1">
-                    <Briefcase className="w-4 h-4" />
-                    {employee.id}
-                  </span>
-                  <span>{employee.department}</span>
-                  <Badge variant="default">{employee.status}</Badge>
-                </div>
-              </div>
-            </div>
-            <Button onClick={() => setShowEditModal(true)}>
-              <Edit className="w-4 h-4 mr-2" />
-              Edit Profile
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="insurance">Insurance</TabsTrigger>
-          <TabsTrigger value="attendance">Attendance</TabsTrigger>
-          <TabsTrigger value="leave">Leave</TabsTrigger>
-          <TabsTrigger value="payroll">Payroll</TabsTrigger>
-        </TabsList>
-
-        {/* TAB 1: PROFILE OVERVIEW */}
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            {/* Personal Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Personal Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+          <CardContent className="pt-6">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-4">
+                <Avatar className="w-24 h-24">
+                  <AvatarImage src={employee.avatar} />
+                  <AvatarFallback className="text-2xl">
+                    {employee.name
+                      .split(' ')
+                      .map((n) => n[0])
+                      .join('')}
+                  </AvatarFallback>
+                </Avatar>
                 <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Email</p>
-                  <p className="font-medium">{employee.email}</p>
-                </div>
-                <Separator />
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Phone</p>
-                  <p className="font-medium">{employee.phone}</p>
-                </div>
-                <Separator />
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Address</p>
-                  <p className="font-medium">{employee.address}</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Employment Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Employment Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Department</p>
-                  <p className="font-medium">{employee.department}</p>
-                </div>
-                <Separator />
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Position</p>
-                  <p className="font-medium">{employee.position}</p>
-                </div>
-                <Separator />
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Manager</p>
-                  <p className="font-medium">{employee.manager}</p>
-                </div>
-                <Separator />
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Join Date</p>
-                  <p className="font-medium">{employee.joinDate}</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Emergency Contact */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Emergency Contact</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Name</p>
-                  <p className="font-medium">{employee.emergencyContact.name}</p>
-                </div>
-                <Separator />
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Relationship</p>
-                  <p className="font-medium">{employee.emergencyContact.relationship}</p>
-                </div>
-                <Separator />
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Phone</p>
-                  <p className="font-medium">{employee.emergencyContact.phone}</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Bank Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Bank Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Bank Name</p>
-                  <p className="font-medium">{employee.bankDetails.bankName}</p>
-                </div>
-                <Separator />
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Account Number</p>
-                  <p className="font-medium">{employee.bankDetails.accountNumber}</p>
-                </div>
-                <Separator />
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Routing Number</p>
-                  <p className="font-medium">{employee.bankDetails.routingNumber}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Documents */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Documents</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {['Employment Contract', 'ID Proof', 'Tax Forms', 'Certifications'].map((doc) => (
-                  <Button key={doc} variant="outline" className="h-auto py-4 flex flex-col gap-2">
-                    <FileText className="w-8 h-8" />
-                    <span className="text-sm">{doc}</span>
-                    <Download className="w-4 h-4" />
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* TAB 2: INSURANCE */}
-        <TabsContent value="insurance" className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-3">
-            {insurancePolicies.map((policy) => (
-              <Card key={policy.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <Shield className="w-8 h-8 text-primary" />
-                    <Badge variant="default">{policy.status}</Badge>
+                  <h2 className="text-2xl font-bold">{employee.name}</h2>
+                  <p className="text-muted-foreground">{employee.position}</p>
+                  <div className="flex items-center gap-4 text-sm">
+                    <span className="flex items-center gap-1">
+                      <Briefcase className="w-4 h-4" />
+                      {employee.id}
+                    </span>
+                    <span>{employee.department}</span>
+                    <Badge variant="default">{employee.status}</Badge>
                   </div>
-                  <CardTitle className="text-lg">{policy.name}</CardTitle>
+                </div>
+              </div>
+              <Button onClick={() => setShowEditModal(true)}>
+                <Edit className="w-4 h-4 mr-2" />
+                Edit Profile
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="insurance">Insurance</TabsTrigger>
+            <TabsTrigger value="attendance">Attendance</TabsTrigger>
+            <TabsTrigger value="leave">Leave</TabsTrigger>
+            <TabsTrigger value="payroll">Payroll</TabsTrigger>
+          </TabsList>
+
+          {/* TAB 1: PROFILE OVERVIEW */}
+          <TabsContent value="overview" className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* Personal Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Personal Information</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Coverage</p>
-                    <p className="text-xl font-bold">{policy.coverage}</p>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Email</p>
+                    <p className="font-medium">{employee.email}</p>
                   </div>
                   <Separator />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Premium</p>
-                    <p className="text-lg font-semibold">{policy.premium}</p>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Phone</p>
+                    <p className="font-medium">{employee.phone}</p>
                   </div>
-                  <Button variant="outline" className="w-full">
-                    View Details
-                  </Button>
+                  <Separator />
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Address</p>
+                    <p className="font-medium">{employee.address}</p>
+                  </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        </TabsContent>
 
-        {/* TAB 3: ATTENDANCE */}
-        <TabsContent value="attendance" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Attendance Records</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Work Mode</TableHead>
-                    <TableHead>Check In</TableHead>
-                    <TableHead>Check Out</TableHead>
-                    <TableHead>Break Start</TableHead>
-                    <TableHead>Break End</TableHead>
-                    <TableHead>Break Duration</TableHead>
-                    <TableHead>Work Hours</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {attendanceRecords.map((record) => {
-                    const calculateWorkHours = () => {
-                      if (!record.checkIn || !record.checkOut || record.checkIn === '-') return '-';
-                      // Simple calculation for display purposes
-                      return '8h 30m';
-                    };
+              {/* Employment Details */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Employment Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Department</p>
+                    <p className="font-medium">{employee.department}</p>
+                  </div>
+                  <Separator />
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Position</p>
+                    <p className="font-medium">{employee.position}</p>
+                  </div>
+                  <Separator />
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Manager</p>
+                    <p className="font-medium">{employee.manager}</p>
+                  </div>
+                  <Separator />
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Join Date</p>
+                    <p className="font-medium">{employee.joinDate}</p>
+                  </div>
+                </CardContent>
+              </Card>
 
-                    return (
-                      <TableRow key={record.date}>
-                        <TableCell className="font-medium">{record.date}</TableCell>
+              {/* Emergency Contact */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Emergency Contact</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Name</p>
+                    <p className="font-medium">{employee.emergencyContact.name}</p>
+                  </div>
+                  <Separator />
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Relationship</p>
+                    <p className="font-medium">{employee.emergencyContact.relationship}</p>
+                  </div>
+                  <Separator />
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Phone</p>
+                    <p className="font-medium">{employee.emergencyContact.phone}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Bank Details */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Bank Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Bank Name</p>
+                    <p className="font-medium">{employee.bankDetails.bankName}</p>
+                  </div>
+                  <Separator />
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Account Number</p>
+                    <p className="font-medium">{employee.bankDetails.accountNumber}</p>
+                  </div>
+                  <Separator />
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Routing Number</p>
+                    <p className="font-medium">{employee.bankDetails.routingNumber}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Documents */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Documents</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {['Employment Contract', 'ID Proof', 'Tax Forms', 'Certifications'].map((doc) => (
+                    <Button key={doc} variant="outline" className="h-auto py-4 flex flex-col gap-2">
+                      <FileText className="w-8 h-8" />
+                      <span className="text-sm">{doc}</span>
+                      <Download className="w-4 h-4" />
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* TAB 2: INSURANCE */}
+          <TabsContent value="insurance" className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-3">
+              {insurancePolicies.map((policy) => (
+                <Card key={policy.id}>
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <Shield className="w-8 h-8 text-primary" />
+                      <Badge variant="default">{policy.status}</Badge>
+                    </div>
+                    <CardTitle className="text-lg">{policy.name}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Coverage</p>
+                      <p className="text-xl font-bold">{policy.coverage}</p>
+                    </div>
+                    <Separator />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Premium</p>
+                      <p className="text-lg font-semibold">{policy.premium}</p>
+                    </div>
+                    <Button variant="outline" className="w-full">
+                      View Details
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          {/* TAB 3: ATTENDANCE */}
+          <TabsContent value="attendance" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Attendance Records</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Work Mode</TableHead>
+                      <TableHead>Check In</TableHead>
+                      <TableHead>Check Out</TableHead>
+                      <TableHead>Break Start</TableHead>
+                      <TableHead>Break End</TableHead>
+                      <TableHead>Break Duration</TableHead>
+                      <TableHead>Work Hours</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {attendanceRecords.map((record) => {
+                      const calculateWorkHours = () => {
+                        if (!record.checkIn || !record.checkOut || record.checkIn === '-') return '-';
+                        // Simple calculation for display purposes
+                        return '8h 30m';
+                      };
+
+                      return (
+                        <TableRow key={record.date}>
+                          <TableCell className="font-medium">{record.date}</TableCell>
+                          <TableCell>
+                            <Badge variant={getStatusBadgeVariant(record.status)}>
+                              {record.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {record.workMode ? (() => {
+                              const config = workModeConfig[record.workMode];
+                              const Icon = config.icon;
+                              return (
+                                <Badge className={config.color}>
+                                  <Icon className="w-3 h-3 mr-1" />
+                                  {config.label}
+                                </Badge>
+                              );
+                            })() : '-'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {record.checkIn !== '-' && <CheckCircle className="w-4 h-4 text-green-600" />}
+                              {record.checkIn}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {record.checkOut !== '-' && <XCircle className="w-4 h-4 text-red-600" />}
+                              {record.checkOut}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {record.breakStart && record.breakStart !== '-' && <Clock className="w-4 h-4 text-amber-600" />}
+                              {record.breakStart || '-'}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {record.breakEnd && record.breakEnd !== '-' && <Clock className="w-4 h-4 text-orange-600" />}
+                              {record.breakEnd || '-'}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {record.breakDuration && record.breakDuration !== '-' ? (
+                              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                                {record.breakDuration}
+                              </Badge>
+                            ) : (
+                              '-'
+                            )}
+                          </TableCell>
+                          <TableCell>{calculateWorkHours()}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+
+
+          {/* TAB 5: LEAVE MANAGEMENT */}
+          <TabsContent value="leave" className="space-y-6">
+            {/* Leave Summary */}
+            <div className="grid gap-4 md:grid-cols-4">
+              <StatsCard
+                title="Total Leaves"
+                value={leaveBalance.total.toString()}
+                description="Annual allocation"
+                icon={CalendarIcon}
+              />
+              <StatsCard
+                title="Used"
+                value={leaveBalance.used.toString()}
+                description="Days taken"
+                icon={CheckSquare}
+              />
+              <StatsCard
+                title="Balance"
+                value={(leaveBalance.total - leaveBalance.used).toString()}
+                description="Days remaining"
+                icon={Activity}
+              />
+              <StatsCard
+                title="Pending Requests"
+                value={leaveBalance.pending.toString()}
+                description="Awaiting approval"
+                icon={Clock}
+              />
+            </div>
+
+            {/* Leave Requests */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Leave Requests</CardTitle>
+                  <Button onClick={() => setShowLeaveModal(true)}>
+                    <CalendarIcon className="w-4 h-4 mr-2" />
+                    Request Leave
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Leave Type</TableHead>
+                      <TableHead>Start Date</TableHead>
+                      <TableHead>End Date</TableHead>
+                      <TableHead>Days</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {leaveRequests.map((leave) => (
+                      <TableRow key={leave.id}>
+                        <TableCell className="font-medium">{leave.type}</TableCell>
+                        <TableCell>{leave.startDate}</TableCell>
+                        <TableCell>{leave.endDate}</TableCell>
+                        <TableCell>{leave.days}</TableCell>
                         <TableCell>
-                          <Badge variant={getStatusBadgeVariant(record.status)}>
-                            {record.status}
+                          <Badge variant={getStatusBadgeVariant(leave.status)}>
+                            {leave.status}
                           </Badge>
                         </TableCell>
-                        <TableCell>
-                          {record.workMode ? (() => {
-                            const config = workModeConfig[record.workMode];
-                            const Icon = config.icon;
-                            return (
-                              <Badge className={config.color}>
-                                <Icon className="w-3 h-3 mr-1" />
-                                {config.label}
-                              </Badge>
-                            );
-                          })() : '-'}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {record.checkIn !== '-' && <CheckCircle className="w-4 h-4 text-green-600" />}
-                            {record.checkIn}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {record.checkOut !== '-' && <XCircle className="w-4 h-4 text-red-600" />}
-                            {record.checkOut}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {record.breakStart && record.breakStart !== '-' && <Clock className="w-4 h-4 text-amber-600" />}
-                            {record.breakStart || '-'}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {record.breakEnd && record.breakEnd !== '-' && <Clock className="w-4 h-4 text-orange-600" />}
-                            {record.breakEnd || '-'}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {record.breakDuration && record.breakDuration !== '-' ? (
-                            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                              {record.breakDuration}
-                            </Badge>
-                          ) : (
-                            '-'
-                          )}
-                        </TableCell>
-                        <TableCell>{calculateWorkHours()}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        
-
-        {/* TAB 5: LEAVE MANAGEMENT */}
-        <TabsContent value="leave" className="space-y-6">
-          {/* Leave Summary */}
-          <div className="grid gap-4 md:grid-cols-4">
-            <StatsCard
-              title="Total Leaves"
-              value={leaveBalance.total.toString()}
-              description="Annual allocation"
-              icon={CalendarIcon}
-            />
-            <StatsCard
-              title="Used"
-              value={leaveBalance.used.toString()}
-              description="Days taken"
-              icon={CheckSquare}
-            />
-            <StatsCard
-              title="Balance"
-              value={(leaveBalance.total - leaveBalance.used).toString()}
-              description="Days remaining"
-              icon={Activity}
-            />
-            <StatsCard
-              title="Pending Requests"
-              value={leaveBalance.pending.toString()}
-              description="Awaiting approval"
-              icon={Clock}
-            />
-          </div>
-
-          {/* Leave Requests */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Leave Requests</CardTitle>
-                <Button onClick={() => setShowLeaveModal(true)}>
-                  <CalendarIcon className="w-4 h-4 mr-2" />
-                  Request Leave
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Leave Type</TableHead>
-                    <TableHead>Start Date</TableHead>
-                    <TableHead>End Date</TableHead>
-                    <TableHead>Days</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {leaveRequests.map((leave) => (
-                    <TableRow key={leave.id}>
-                      <TableCell className="font-medium">{leave.type}</TableCell>
-                      <TableCell>{leave.startDate}</TableCell>
-                      <TableCell>{leave.endDate}</TableCell>
-                      <TableCell>{leave.days}</TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusBadgeVariant(leave.status)}>
-                          {leave.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedLeave(leave);
-                            setShowViewLeaveModal(true);
-                          }}
-                        >
-                          View
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* TAB 6: PAYROLL */}
-        <TabsContent value="payroll" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Salary Slips</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Month</TableHead>
-                    <TableHead>Gross Salary</TableHead>
-                    <TableHead>Deductions</TableHead>
-                    <TableHead>Net Salary</TableHead>
-                    <TableHead>Payment Date</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {payrollRecords.map((record) => (
-                    <TableRow key={record.id}>
-                      <TableCell className="font-medium">{record.month}</TableCell>
-                      <TableCell>${record.gross.toLocaleString()}</TableCell>
-                      <TableCell className="text-red-600">
-                        -${record.deductions.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="font-semibold text-green-600">
-                        ${record.netSalary.toLocaleString()}
-                      </TableCell>
-                      <TableCell>{record.paymentDate}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button variant="ghost" size="sm">
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedLeave(leave);
+                              setShowViewLeaveModal(true);
+                            }}
+                          >
                             View
                           </Button>
-                          <Button variant="ghost" size="sm">
-                            <Download className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-      {/* Modals */}
-      <EditProfileModal />
-      <RequestLeaveModal />
-      {/* View Leave Details Modal */}
-      <Dialog open={showViewLeaveModal} onOpenChange={(open) => { if(!open) { setShowViewLeaveModal(false); setSelectedLeave(null); } }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Leave Details</DialogTitle>
-            <DialogDescription>Details for the selected leave request</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            {selectedLeave ? (
-              <>
-                <div>
-                  <Label>Type</Label>
-                  <p className="font-medium">{selectedLeave.type}</p>
-                </div>
-                <div>
-                  <Label>Start Date</Label>
-                  <p className="font-medium">{selectedLeave.startDate}</p>
-                </div>
-                <div>
-                  <Label>End Date</Label>
-                  <p className="font-medium">{selectedLeave.endDate}</p>
-                </div>
-                <div>
-                  <Label>Days</Label>
-                  <p className="font-medium">{selectedLeave.days}</p>
-                </div>
-                <div>
-                  <Label>Status </Label>
-                  <Badge variant={getStatusBadgeVariant(selectedLeave.status)}>{selectedLeave.status}</Badge>
-                </div>
-                {selectedLeave.reason && (
+          {/* TAB 6: PAYROLL */}
+          <TabsContent value="payroll" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Salary Slips</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Month</TableHead>
+                      <TableHead>Gross Salary</TableHead>
+                      <TableHead>Deductions</TableHead>
+                      <TableHead>Net Salary</TableHead>
+                      <TableHead>Payment Date</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {payrollRecords.map((record) => (
+                      <TableRow key={record.id}>
+                        <TableCell className="font-medium">{record.month}</TableCell>
+                        <TableCell>${record.gross.toLocaleString()}</TableCell>
+                        <TableCell className="text-red-600">
+                          -${record.deductions.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="font-semibold text-green-600">
+                          ${record.netSalary.toLocaleString()}
+                        </TableCell>
+                        <TableCell>{record.paymentDate}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button variant="ghost" size="sm">
+                              View
+                            </Button>
+                            <Button variant="ghost" size="sm">
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Modals */}
+        <EditProfileModal />
+        <RequestLeaveModal />
+        {/* View Leave Details Modal */}
+        <Dialog open={showViewLeaveModal} onOpenChange={(open) => { if (!open) { setShowViewLeaveModal(false); setSelectedLeave(null); } }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Leave Details</DialogTitle>
+              <DialogDescription>Details for the selected leave request</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              {selectedLeave ? (
+                <>
                   <div>
-                    <Label>Reason</Label>
-                    <p className="whitespace-pre-wrap">{selectedLeave.reason}</p>
+                    <Label>Type</Label>
+                    <p className="font-medium">{selectedLeave.type}</p>
                   </div>
-                )}
-              </>
-            ) : (
-              <p>No leave selected.</p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => { setShowViewLeaveModal(false); setSelectedLeave(null); }}
-            >
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                  <div>
+                    <Label>Start Date</Label>
+                    <p className="font-medium">{selectedLeave.startDate}</p>
+                  </div>
+                  <div>
+                    <Label>End Date</Label>
+                    <p className="font-medium">{selectedLeave.endDate}</p>
+                  </div>
+                  <div>
+                    <Label>Days</Label>
+                    <p className="font-medium">{selectedLeave.days}</p>
+                  </div>
+                  <div>
+                    <Label>Status </Label>
+                    <Badge variant={getStatusBadgeVariant(selectedLeave.status)}>{selectedLeave.status}</Badge>
+                  </div>
+                  {selectedLeave.reason && (
+                    <div>
+                      <Label>Reason</Label>
+                      <p className="whitespace-pre-wrap">{selectedLeave.reason}</p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p>No leave selected.</p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => { setShowViewLeaveModal(false); setSelectedLeave(null); }}
+              >
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

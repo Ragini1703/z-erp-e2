@@ -4,7 +4,6 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -15,92 +14,44 @@ import {
   User,
   Building2,
   LogOut,
-  HelpCircle,
-  Video,
-  Sparkles,
-  BookOpen,
-  Users,
-  Code,
   Trash2,
   Globe,
-  Smartphone,
   AlertTriangle
 } from 'lucide-react';
 import { useLocation } from 'wouter';
-
-interface UserData {
-  name: string;
-  email: string;
-  timezone: string;
-  avatar?: string;
-}
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ProfileDropdown() {
   const [, setLocation] = useLocation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const { user, logout } = useAuth();
 
-  // Fetch user data from localStorage or use mock data
-  let userData: UserData = { name: 'John Doe', email: 'john.doe@example.com', timezone: 'America/New_York' };
-  
-  try {
-    const orgData = localStorage.getItem('zervos_organization');
-    if (orgData) {
-      try {
-        const org = JSON.parse(orgData);
-        if (org && typeof org === 'object') {
-          userData = {
-            name: org.businessName || 'John Doe',
-            email: org.email || 'john.doe@example.com',
-            timezone: org.timezone || 'America/New_York',
-            avatar: org.avatar || undefined,
-          };
-        }
-      } catch {}
-    }
-  } catch {}
+  // Derive display values from the real Supabase user object
+  const displayName: string =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    user?.email?.split('@')[0] ||
+    'User';
 
-  const handleSignOut = () => {
-    // Clear all keys that belong to this app's localStorage namespace
-    try {
-      Object.keys(localStorage).forEach((key) => {
-        if (key.startsWith('zervos_')) localStorage.removeItem(key);
-      });
-    } catch (e) {
-      // fallback: try removing common keys
-      localStorage.removeItem('zervos_user_session');
-      localStorage.removeItem('zervos_organization');
-      localStorage.removeItem('zervos_subscription');
-    }
+  const displayEmail: string = user?.email || '';
+  const timezone: string = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const avatarUrl: string | undefined = user?.user_metadata?.avatar_url;
 
-    // Navigate to the login page and reload to ensure any in-memory state is cleared
-    setLocation('/login');
-    // Force a hard reload so any React state/context is reset
-    setTimeout(() => window.location.reload(), 50);
+  const handleSignOut = async () => {
+    await logout();
+    // AppRouter guard will redirect to /login automatically
   };
 
-  const handleViewOrgDetails = () => {
-    setLocation('/dashboard/admin-center');
-  };
-
-  const handleMyAccount = () => {
-    setLocation('/dashboard/account');
-  };
+  const handleViewOrgDetails = () => setLocation('/settings/organization');
+  const handleMyAccount = () => setLocation('/profile');
 
   const handleDeleteAccount = () => {
-    // Clear all localStorage data
     localStorage.clear();
-    // Redirect to homepage or login
     setLocation('/');
   };
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
+  const getInitials = (name: string) =>
+    name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
   return (
     <>
@@ -108,9 +59,9 @@ export default function ProfileDropdown() {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="relative h-10 w-10 rounded-full">
             <Avatar className="h-10 w-10 cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all">
-              <AvatarImage src={userData?.avatar} alt={userData?.name || 'User'} />
+              <AvatarImage src={avatarUrl} alt={displayName} />
               <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold">
-                {getInitials(userData?.name || 'User')}
+                {getInitials(displayName)}
               </AvatarFallback>
             </Avatar>
           </Button>
@@ -120,17 +71,17 @@ export default function ProfileDropdown() {
           <div className="px-4 py-3">
             <div className="flex items-center gap-3">
               <Avatar className="h-12 w-12">
-                <AvatarImage src={userData?.avatar} alt={userData?.name || 'User'} />
+                <AvatarImage src={avatarUrl} alt={displayName} />
                 <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold">
-                  {getInitials(userData?.name || 'User')}
+                  {getInitials(displayName)}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 truncate">{userData?.name || 'User'}</p>
-                <p className="text-xs text-gray-500 truncate">{userData?.email || 'user@example.com'}</p>
+                <p className="text-sm font-semibold text-gray-900 truncate">{displayName}</p>
+                <p className="text-xs text-gray-500 truncate">{displayEmail}</p>
                 <div className="flex items-center gap-1 mt-1">
                   <Globe size={12} className="text-gray-400" />
-                  <p className="text-xs text-gray-400">{userData?.timezone || 'UTC'}</p>
+                  <p className="text-xs text-gray-400">{timezone}</p>
                 </div>
               </div>
             </div>
@@ -156,7 +107,7 @@ export default function ProfileDropdown() {
 
           <DropdownMenuSeparator />
 
-          
+
         </DropdownMenuContent>
       </DropdownMenu>
 

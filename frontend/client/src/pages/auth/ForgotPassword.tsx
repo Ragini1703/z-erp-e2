@@ -4,25 +4,53 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Mail, ArrowLeft } from 'lucide-react';
+import { Mail, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   const { toast } = useToast();
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg('');
+
     if (!email.trim()) {
       toast({ title: 'Email required', description: 'Please enter your email address.' });
       return;
     }
+
     setLoading(true);
-    setTimeout(() => {
+
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        const msg = data.error || 'Something went wrong. Please try again.';
+        setErrorMsg(msg);
+        toast({ title: 'Error', description: msg, variant: 'destructive' });
+        return;
+      }
+
+      setSent(true);
+      toast({
+        title: 'Check your inbox',
+        description: data.message || `If ${email} is registered, a reset link was sent.`,
+      });
+    } catch {
+      setErrorMsg('Network error. Please try again.');
+      toast({ title: 'Error', description: 'Network error. Please try again.', variant: 'destructive' });
+    } finally {
       setLoading(false);
-      toast({ title: 'Check your inbox', description: `If ${email} is registered, a reset link was sent.` });
-      setEmail('');
-    }, 1200);
+    }
   };
 
   return (
@@ -43,24 +71,46 @@ export default function ForgotPassword() {
             <CardDescription className="text-slate-500">Enter your email and we'll send a reset link.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={submit} className="space-y-4">
-              <div className="space-y-1">
-                <Label htmlFor="fp-email" className="text-sm text-slate-700">Email address</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                  <Input id="fp-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-11 h-14" placeholder="name@company.com" />
+            {sent ? (
+              <div className="flex flex-col items-center gap-4 py-6 text-center">
+                <div className="h-14 w-14 rounded-full bg-green-100 flex items-center justify-center">
+                  <CheckCircle2 className="h-7 w-7 text-green-600" />
                 </div>
-              </div>
-
-              <div className="flex items-center justify-between gap-2">
-                <a href="/login" className="text-sm text-slate-600 hover:text-slate-800 inline-flex items-center gap-2">
+                <p className="text-slate-700 font-medium">Reset link sent!</p>
+                <p className="text-slate-500 text-sm max-w-sm">
+                  If <strong>{email}</strong> is registered, you'll receive an email with a link to reset your password. Check your spam folder if you don't see it.
+                </p>
+                <a href="/login" className="text-sm text-purple-800 hover:text-purple-900 inline-flex items-center gap-2 mt-2">
                   <ArrowLeft className="h-4 w-4" /> Back to sign in
                 </a>
-                <Button type="submit" className="bg-purple-900 hover:bg-purple-950 text-white" disabled={loading}>
-                  {loading ? 'Sending...' : 'Send reset link'}
-                </Button>
               </div>
-            </form>
+            ) : (
+              <form onSubmit={submit} className="space-y-4">
+                {errorMsg && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{errorMsg}</span>
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <Label htmlFor="fp-email" className="text-sm text-slate-700">Email address</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                    <Input id="fp-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-11 h-14" placeholder="name@company.com" />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-2">
+                  <a href="/login" className="text-sm text-slate-600 hover:text-slate-800 inline-flex items-center gap-2">
+                    <ArrowLeft className="h-4 w-4" /> Back to sign in
+                  </a>
+                  <Button type="submit" className="bg-purple-900 hover:bg-purple-950 text-white" disabled={loading}>
+                    {loading ? 'Sending...' : 'Send reset link'}
+                  </Button>
+                </div>
+              </form>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -1,29 +1,106 @@
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 
+// ─── Helper: persisted token storage ───────────────────────
+const TOKEN_KEY = 'z_erp_session';
+
+function persistSession(session: Session | null) {
+  if (session) {
+    localStorage.setItem(TOKEN_KEY, JSON.stringify(session));
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+  }
+}
+
+function loadPersistedSession(): Session | null {
+  try {
+    const raw = localStorage.getItem(TOKEN_KEY);
+    return raw ? (JSON.parse(raw) as Session) : null;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Context type ──────────────────────────────────────────
 type AuthContextType = {
   session: Session | null;
   user: User | null;
   loading: boolean;
+  login: (email: string, password: string) => Promise<{ error?: string }>;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
   loading: true,
+  login: async () => ({}),
+  logout: async () => { },
 });
 
+// ─── Provider ──────────────────────────────────────────────
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  // No authentication - mock session for compatibility
-  const [session] = useState<Session | null>(null);
-  const [user] = useState<User | null>(null);
-  const [loading] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // On mount – ALWAYS clear existing session to force fresh login
+  useEffect(() => {
+    localStorage.removeItem(TOKEN_KEY);
+    setSession(null);
+    setUser(null);
+    setLoading(false);
+  }, []);
+
+  // ── Login ──────────────────────────────────────────────
+  const login = useCallback(async (email: string, password: string): Promise<{ error?: string }> => {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        return { error: data.error || 'Login failed' };
+      }
+
+      setSession(data.session);
+      setUser(data.user);
+      return {};
+    } catch {
+      return { error: 'Network error. Please try again.' };
+    }
+  }, []);
+
+  // ── Logout ─────────────────────────────────────────────
+  const logout = useCallback(async () => {
+    try {
+      if (session?.access_token) {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+      }
+    } catch {
+      // Ignore network errors on logout
+    } finally {
+      setSession(null);
+      setUser(null);
+      localStorage.removeItem(TOKEN_KEY);
+      // Navigation handled by AppRouter guard (watches session state)
+    }
+  }, [session]);
 
   const contextValue = useMemo(() => ({
     session,
     user,
-    loading
-  }), [session, user, loading]);
+    loading,
+    login,
+    logout,
+  }), [session, user, loading, login, logout]);
 
   return (
     <AuthContext.Provider value={contextValue}>

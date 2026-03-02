@@ -6,8 +6,6 @@ import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 export default defineConfig({
   plugins: [
     react({
-      // Enable Fast Refresh for better DX
-      fastRefresh: true,
       // Optimize dependencies
       babel: {
         plugins: [

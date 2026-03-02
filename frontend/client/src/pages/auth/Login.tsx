@@ -1,21 +1,24 @@
 import { useState } from 'react';
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Briefcase, 
-  Mail, 
-  Lock, 
-  Eye, 
-  EyeOff, 
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  Briefcase,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
   ArrowRight,
   Sparkles,
   Shield,
   Zap,
-  Users
+  Users,
+  AlertCircle
 } from 'lucide-react';
 
 export default function Login() {
@@ -24,25 +27,33 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState('');
   const { toast } = useToast();
+  const { login } = useAuth();
+  const [, setLocation] = useLocation();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    setLoginError('');
+
     if (!email.trim() || !password.trim()) {
       toast({ title: 'Missing fields', description: 'Please enter both email and password.' });
       return;
     }
 
     setIsLoading(true);
-    
-    // Simulate login - replace with actual auth logic
-    setTimeout(() => {
+
+    const { error } = await login(email.trim(), password);
+
+    if (error) {
       setIsLoading(false);
-      toast({ title: 'Welcome back!', description: 'You have successfully logged in.' });
-      // Navigate to dashboard - using wouter or window.location
-      window.location.href = '/';
-    }, 1500);
+      setLoginError(error);
+      toast({ title: 'Login failed', description: error, variant: 'destructive' });
+      return;
+    }
+
+    toast({ title: 'Welcome back!', description: 'You have successfully logged in.' });
+    setLocation('/');
   };
 
   const features = [
@@ -91,7 +102,7 @@ export default function Login() {
                 <span className="text-purple-300">Business Operations</span>
               </h2>
               <p className="text-purple-200 text-lg max-w-md">
-                All-in-one platform for HR, Sales, Projects, Finance, and more. 
+                All-in-one platform for HR, Sales, Projects, Finance, and more.
                 Built for modern enterprises.
               </p>
             </div>
@@ -99,7 +110,7 @@ export default function Login() {
             {/* Feature Cards */}
             <div className="grid gap-4">
               {features.map((feature, index) => (
-                <div 
+                <div
                   key={index}
                   className="flex items-center gap-4 p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 hover:bg-white/15 transition-colors"
                 >
@@ -154,6 +165,14 @@ export default function Login() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleLogin} className="space-y-5">
+                {/* Error Banner */}
+                {loginError && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{loginError}</span>
+                  </div>
+                )}
+
                 {/* Email Field */}
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-slate-700 font-medium">

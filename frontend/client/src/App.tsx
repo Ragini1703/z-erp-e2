@@ -58,10 +58,33 @@ import ForgotPassword from "@/pages/auth/ForgotPassword";
 
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { Route, Switch } from "wouter";
+import { Route, Switch, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
+import { useAuth } from "@/contexts/AuthContext";
 
 function AppRouter() {
+  const { session, loading } = useAuth();
+  const [location, setLocation] = useLocation();
+
+  useEffect(() => {
+    // If we're not landing on an auth page and there's no session, redirect to login
+    if (!loading && !session && location !== "/login" && location !== "/forgot-password") {
+      setLocation("/login");
+    }
+    // If we are on an auth page but already have a session, redirect to home
+    if (!loading && session && (location === "/login" || location === "/forgot-password")) {
+      setLocation("/");
+    }
+  }, [session, loading, location, setLocation]);
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-slate-50">
+        <div className="h-12 w-12 border-4 border-purple-900/30 border-t-purple-900 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <Switch>
       {/* Auth Routes */}
@@ -69,7 +92,9 @@ function AppRouter() {
       <Route path="/forgot-password" component={ForgotPassword} />
 
       {/* Default root → redirect to leads */}
-      <Route path="/" component={LeadsWorkflow} />
+      <Route path="/">
+        {!session ? <Login /> : <LeadsWorkflow />}
+      </Route>
 
       {/* HRM Module Routes */}
       <Route path="/hrm/employees" component={HRMEmployees} />
