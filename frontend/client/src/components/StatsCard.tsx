@@ -41,23 +41,23 @@ export default function StatsCard({
         scale: 1.02,
         transition: { type: "spring", stiffness: 300, damping: 20 }
       }}
-      className="group bg-white/70 dark:bg-gray-900/80 backdrop-blur-lg p-6 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer"
+      className="group bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg p-6 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer"
     >
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</h3>
+        <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{title}</h3>
         <motion.div
           whileHover={{ scale: 1.1, rotate: 5 }}
           transition={{ type: "spring", stiffness: 400 }}
-          className={`p-2 rounded-lg ${iconBg}`}
+          className={`p-2.5 rounded-xl ${iconBg} shadow-sm`}
         >
-          <Icon className={`w-4 h-4 ${iconColor}`} />
+          <Icon className={`w-5 h-5 ${iconColor}`} />
         </motion.div>
       </div>
       <motion.p
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: delay + 0.1 }}
-        className="text-3xl font-bold text-gray-900 dark:text-white mb-1"
+        className="text-3xl font-bold text-gray-900 dark:text-white mb-2 tracking-tight"
       >
         {value}
       </motion.p>
@@ -66,15 +66,15 @@ export default function StatsCard({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: delay + 0.2 }}
-          className={`text-xs ${changeColors[changeType]} flex items-center gap-1`}
+          className={`text-sm font-medium ${changeColors[changeType]} flex items-center gap-1.5`}
         >
-          {changeType === 'positive' && '↗'}
-          {changeType === 'negative' && '↘'}
+          {changeType === 'positive' && <span className="text-lg">↗</span>}
+          {changeType === 'negative' && <span className="text-lg">↘</span>}
           {change}
         </motion.p>
       )}
       {description && (
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">{description}</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 font-medium leading-relaxed">{description}</p>
       )}
     </motion.div>
   );
@@ -86,7 +86,7 @@ interface StatsGridProps {
 
 export function StatsGrid({ children }: StatsGridProps) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
       {children}
     </div>
   );

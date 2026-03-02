@@ -156,23 +156,23 @@ export default function HRMDashboard() {
         </div>
 
         {/* High-Fidelity KPI Grid */}
-        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {kpiStats.map((stat, index) => (
-            <Card key={index} className="relative overflow-hidden border-slate-200/60 shadow-sm hover:shadow-md transition-all group">
+            <Card key={index} className="relative overflow-hidden border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 group hover:-translate-y-1">
               <div className={cn("absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity duration-500", stat.gradient)} />
-              <CardContent className="p-6 relative">
-                <div className="flex items-center justify-between mb-4">
-                  <div className={cn("p-2.5 rounded-xl transition-transform group-hover:scale-110 duration-300", stat.bgColor)}>
+              <CardContent className="p-5 md:p-6 relative">
+                <div className="flex items-center justify-between mb-3">
+                  <div className={cn("p-3 rounded-xl transition-transform group-hover:scale-110 duration-300 shadow-sm", stat.bgColor)}>
                     <stat.icon className={cn("h-5 w-5", stat.color)} />
                   </div>
-                  <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md">
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">
                     <TrendingUp className="h-3 w-3" />
                     +4%
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">{stat.title}</p>
-                  <h3 className="text-3xl font-black text-slate-900">{stat.value}</h3>
+                <div className="space-y-1.5">
+                  <p className="text-xs md:text-sm font-semibold text-slate-600 uppercase tracking-wide">{stat.title}</p>
+                  <h3 className="text-2xl md:text-3xl font-bold text-slate-900">{stat.value}</h3>
                 </div>
               </CardContent>
             </Card>
@@ -180,39 +180,38 @@ export default function HRMDashboard() {
         </div>
 
         {/* Modular Navigation Grid */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between px-1">
-            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-              <Zap className="h-5 w-5 text-amber-500 fill-amber-500" />
+        <div className="space-y-5">
+          <div className="flex items-center justify-between px-0.5">
+            <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2.5">
+              <Zap className="h-5 w-5 md:h-6 md:w-6 text-amber-500 fill-amber-500" />
               Core Modules
             </h2>
-            
           </div>
           
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {hrmModules.map((module, index) => (
               <Card 
                 key={index} 
                 className={cn(
-                  "group relative overflow-hidden cursor-pointer border-slate-200/60 hover:border-transparent transition-all duration-300",
-                  "hover:shadow-2xl hover:shadow-slate-200"
+                  "group relative overflow-hidden cursor-pointer border-2 border-slate-200 hover:border-blue-300 transition-all duration-300",
+                  "hover:shadow-xl hover:shadow-blue-100/50 hover:-translate-y-1"
                 )}
                 onClick={() => setLocation(module.route)}
               >
-                <div className={cn("absolute top-0 left-0 w-1 h-full opacity-0 group-hover:opacity-100 transition-opacity", module.bgColor.replace('bg-', 'bg-').replace('50', '500'))} />
-                <CardHeader className="pb-4">
+                <div className={cn("absolute top-0 left-0 w-1.5 h-full opacity-0 group-hover:opacity-100 transition-opacity", module.bgColor.replace('bg-', 'bg-').replace('50', '500'))} />
+                <CardHeader className="pb-3">
                   <div className="flex justify-between items-start">
                     <div className={cn("p-3 rounded-2xl transition-all duration-500 group-hover:rotate-6 group-hover:scale-110 shadow-sm", module.bgColor)}>
-                      <module.icon className={cn("h-7 w-7", module.color)} />
+                      <module.icon className={cn("h-6 w-6 md:h-7 md:w-7", module.color)} />
                     </div>
-                    <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-slate-600 group-hover:translate-x-1 transition-all" />
+                    <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-1 transition-all duration-300" />
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <CardTitle className="text-xl font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
+                <CardContent className="space-y-2">
+                  <CardTitle className="text-lg md:text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-tight">
                     {module.title}
                   </CardTitle>
-                  <CardDescription className="text-sm text-slate-500 leading-relaxed font-medium">
+                  <CardDescription className="text-sm text-slate-600 leading-relaxed">
                     {module.description}
                   </CardDescription>
                 </CardContent>

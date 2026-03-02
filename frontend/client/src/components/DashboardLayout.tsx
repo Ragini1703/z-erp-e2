@@ -799,7 +799,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
           </div>
         </header>
 
-        <main className="relative flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8" style={{ overflowX: 'hidden' }}>
+        <main className="relative flex-1 overflow-y-auto px-3 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6 lg:px-8" style={{ overflowX: 'hidden' }}>
           <div className="mx-auto w-full max-w-7xl">
             {children}
           </div>
